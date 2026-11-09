@@ -90,7 +90,9 @@ def validate_dataset(dataset_dir: Path) -> list[str]:
                 resolved = source_path.resolve(strict=True)
                 resolved.relative_to(corpus_dir.resolve(strict=True))
             except (OSError, ValueError):
-                errors.append(f"Line {line_number}: source does not exist inside corpus: {source!r}")
+                errors.append(
+                    f"Line {line_number}: source does not exist inside corpus: {source!r}"
+                )
                 continue
             if not resolved.is_file():
                 errors.append(f"Line {line_number}: source is not a file: {source!r}")
@@ -100,7 +102,9 @@ def validate_dataset(dataset_dir: Path) -> list[str]:
         joined_text = "\n".join(source_text)
         for span in evidence:
             if span not in joined_text:
-                errors.append(f"Line {line_number}: evidence span not found in expected sources: {span!r}")
+                errors.append(
+                    f"Line {line_number}: evidence span not found in expected sources: {span!r}"
+                )
 
     if not seen_ids:
         errors.append("Dataset contains no questions")
