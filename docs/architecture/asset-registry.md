@@ -58,3 +58,12 @@ The scanner is not a hardened sandbox against an adversary concurrently replacin
 - How should case sensitivity and Unicode normalization be represented across filesystems?
 - What policy should govern encrypted archives and symlinks?
 - When should duplicate content be represented as one asset with multiple locations versus separate logical assets?
+
+
+## Platform and filesystem security boundaries
+
+- Directory traversal uses descriptor-relative opens with `O_DIRECTORY | O_NOFOLLOW` and device/inode verification where Python and the filesystem expose the required POSIX primitives. Unsupported platforms fail closed instead of silently falling back to path-based recursion.
+- The scanner protects directory descent against a path being replaced by a symlink between metadata observation and open. It is not a complete sandbox against an attacker renaming an already-open directory outside the root while the scan is in progress.
+- File identity hashing uses `O_NOFOLLOW` where available and compares descriptor/path metadata before and after reading. This detects common replacement and in-place mutation cases, but it is not a universal filesystem-level lock.
+- Windows may not expose `O_NOFOLLOW`; network filesystems and some virtual filesystems may provide weak or unstable inode/change-time semantics. A matching metadata signature is therefore evidence of consistency, not a cryptographic guarantee that no concurrent mutation occurred.
+- Production deployments should treat concurrently attacker-writable roots as unsupported unless a platform-specific hardened adapter is added and independently tested.
