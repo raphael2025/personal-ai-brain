@@ -207,7 +207,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$;
+$function$;
 
 CREATE TRIGGER scan_runs_valid_transitions
     BEFORE UPDATE OF status ON scan_runs
