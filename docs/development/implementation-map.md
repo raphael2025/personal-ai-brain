@@ -2,7 +2,7 @@
 
 This is the execution map for turning the architecture into a working product. Implement each work package as focused PRs with tests. Dependencies are deliberate; do not build UI on unstable contracts.
 
-## A — Asset Registry (P0) — [Issue #32](https://github.com/raphael2025/personal-ai-brain/issues/32) (remaining CLI/migration hardening; initial repository/service/root-scan path merged in PR #34), [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10) (schema merged), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1) (domain models merged)
+## A — Asset Registry (P0) — [Issue #32](https://github.com/raphael2025/personal-ai-brain/issues/32) (initial repository/service/root-scan path merged in PR #34), [Issue #35](https://github.com/raphael2025/personal-ai-brain/issues/35) (remaining CLI/dry-run/normalizer migration), [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10) (schema merged), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1) (domain models merged)
 
 Goal: know which assets exist, where they are, and which versions were observed.
 
