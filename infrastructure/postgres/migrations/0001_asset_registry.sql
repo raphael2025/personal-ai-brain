@@ -192,7 +192,7 @@ CREATE TRIGGER scan_observations_open_run_only
 CREATE FUNCTION prevent_scan_run_reopen()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $function$
 BEGIN
     IF OLD.status IN ('complete', 'partial', 'failed', 'cancelled')
        AND NEW.status IS DISTINCT FROM OLD.status THEN
