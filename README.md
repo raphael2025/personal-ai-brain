@@ -13,6 +13,19 @@ The system is designed around four principles:
 
 > **Project status: early design / Phase 0.** This repository is being initialized. Architecture proposals and integrations are not production-ready until implemented and tested.
 
+## 项目说明（中文）
+
+这是一个本地优先的个人数字资产与 AI 记忆基础设施项目。目标不是把所有文件上传给某个模型，而是先登记和理解用户自己的数字资产，再按需向不同 AI 提供经过授权、可追溯的上下文。
+
+核心原则：
+- 原始文件留在用户自己的设备或存储中，默认只读。
+- 热知识可快速调用，冷知识保留索引、按需激活。
+- 摘要、向量和知识图谱都是派生数据，不能替代原始证据。
+- 多个 AI 客户端共享同一套受权限控制的记忆接口。
+- 项目目前处于 Phase 0，尚未达到可用于真实个人档案的生产状态。
+
+文档入口：[中文/英文架构文档](docs/README.md) · [开发路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+
 ## Goals
 
 - Inventory files across computers, NAS devices, and removable storage.
