@@ -36,6 +36,20 @@ CREATE TABLE asset_versions (
 CREATE INDEX asset_versions_fingerprint_idx
     ON asset_versions (sha256, size_bytes);
 
+-- Asset versions are immutable evidence of observed content. New bytes create a new row.
+CREATE FUNCTION prevent_asset_version_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+    RAISE EXCEPTION 'asset versions are immutable; insert a new version instead';
+END;
+$;
+
+CREATE TRIGGER asset_versions_immutable
+    BEFORE UPDATE OR DELETE ON asset_versions
+    FOR EACH ROW EXECUTE FUNCTION prevent_asset_version_mutation();
+
 CREATE TABLE scan_runs (
     id uuid PRIMARY KEY,
     storage_root_id uuid NOT NULL REFERENCES storage_roots(id) ON DELETE RESTRICT,
@@ -43,6 +57,7 @@ CREATE TABLE scan_runs (
         status IN ('pending', 'running', 'complete', 'partial', 'failed', 'cancelled')
     ),
     scanner_version text NOT NULL,
+    path_normalizer_version text NOT NULL DEFAULT 'v1',
     started_at timestamptz NOT NULL DEFAULT now(),
     finished_at timestamptz,
     error_summary text,
@@ -165,9 +180,12 @@ AS $$
 DECLARE
     target_scan_id uuid;
     target_status text;
+    target_normalizer_version text;
 BEGIN
     target_scan_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.scan_run_id ELSE NEW.scan_run_id END;
-    SELECT status INTO target_status FROM scan_runs WHERE id = target_scan_id FOR SHARE;
+    SELECT status, path_normalizer_version
+      INTO target_status, target_normalizer_version
+      FROM scan_runs WHERE id = target_scan_id FOR SHARE;
     IF target_status IS NULL THEN
         RAISE EXCEPTION 'scan run % does not exist', target_scan_id;
     END IF;
@@ -176,6 +194,9 @@ BEGIN
     END IF;
     IF TG_OP = 'UPDATE' AND OLD.scan_run_id <> NEW.scan_run_id THEN
         RAISE EXCEPTION 'an observation cannot be moved between scan runs';
+    END IF;
+    IF TG_OP <> 'DELETE' AND NEW.path_normalizer_version <> target_normalizer_version THEN
+        RAISE EXCEPTION 'observation path normalizer version must match its scan run';
     END IF;
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
@@ -193,6 +214,12 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $function$
 BEGIN
+    IF NEW.storage_root_id IS DISTINCT FROM OLD.storage_root_id THEN
+        RAISE EXCEPTION 'scan run storage root is immutable';
+    END IF;
+    IF NEW.path_normalizer_version IS DISTINCT FROM OLD.path_normalizer_version THEN
+        RAISE EXCEPTION 'scan run path normalizer version is immutable';
+    END IF;
     IF OLD.status IN ('complete', 'partial', 'failed', 'cancelled') THEN
         IF NEW.status IS DISTINCT FROM OLD.status
            OR NEW.storage_root_id IS DISTINCT FROM OLD.storage_root_id
@@ -226,10 +253,11 @@ AS $$
 DECLARE
     v_root_id uuid;
     v_finished_at timestamptz;
+    v_normalizer_version text;
     v_event_count bigint;
 BEGIN
-    SELECT storage_root_id, finished_at
-      INTO v_root_id, v_finished_at
+    SELECT storage_root_id, finished_at, path_normalizer_version
+      INTO v_root_id, v_finished_at, v_normalizer_version
       FROM scan_runs
      WHERE id = p_scan_run_id
        AND status = 'complete'
@@ -238,6 +266,17 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'reconciliation requires a completed scan run: %', p_scan_run_id;
+    END IF;
+
+    -- A normalizer upgrade changes path keys. Refuse to reconcile until the
+    -- root's active locations have been migrated to the scan's key version.
+    IF EXISTS (
+        SELECT 1 FROM asset_locations AS l
+         WHERE l.storage_root_id = v_root_id
+           AND l.valid_to IS NULL
+           AND l.path_normalizer_version <> v_normalizer_version
+    ) THEN
+        RAISE EXCEPTION 'path normalizer version mismatch; migrate active locations before reconciliation';
     END IF;
 
     WITH observed_files AS (
