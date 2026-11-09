@@ -12,7 +12,7 @@ The system is designed around four principles:
 3. **Provenance by default:** every extracted fact should be traceable to its source and version.
 4. **Explicit permissions:** external models and tools receive only the context a user authorizes.
 
-> **Project status: pre-alpha / Phase 0.** Architecture proposals and integrations are not production-ready until implemented and tested.
+> **Project status: pre-alpha / Phase 1 foundation.** The Asset Registry has an initial PostgreSQL schema, scan service, and CLI. The broader memory, retrieval, policy, and multi-client system remains under development; do not use it as a production personal archive yet.
 
 ## 项目说明
 
@@ -23,7 +23,7 @@ The system is designed around four principles:
 - 热知识可快速调用，冷知识保留索引、按需激活。
 - 摘要、向量和知识图谱都是派生数据，不能替代原始证据。
 - 多个 AI 客户端共享同一套受权限控制的记忆接口。
-- 当前尚未达到可用于真实个人档案的生产状态。
+- 当前仍处于早期开发阶段，不应承载生产环境的个人敏感档案。
 
 ## 从这里开始
 
@@ -32,6 +32,7 @@ The system is designed around four principles:
 - **[数据生命周期](docs/architecture/data-lifecycle.md)**：资产、版本、派生数据、记忆与删除规则。
 - **[权限与上下文安全](docs/architecture/context-and-policy.md)**：身份、授权、外部模型数据出口。
 - **[实施地图](docs/development/implementation-map.md)**：P0–P3 工作包、依赖顺序和验收标准。
+- **[Asset Registry CLI 使用说明](docs/development/registry-service.md)**：数据库迁移、根目录登记、扫描命令及当前限制。
 - [项目状态](PROJECT_STATUS.md) · [完整文档索引](docs/README.md) · [路线图](ROADMAP.md)
 
 ## Goals
@@ -73,7 +74,16 @@ The initial design is a modular monolith with independently runnable workers:
 
 ## Quick start
 
-There is no supported end-user installation yet. See [DEVELOPMENT.md](DEVELOPMENT.md) for contributor setup.
+The initial developer CLI is available. It requires PostgreSQL and a manually applied migration:
+
+    python -m pip install -e ".[postgres,dev]"
+    export PAB_DATABASE_URL='postgresql://...'
+    psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/postgres/migrations/0001_asset_registry.sql
+    pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
+    pab root list
+    pab scan <root-uuid>
+
+For SMB/NFS roots, pass a local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for important limitations. This is a developer preview, not a supported general-purpose installer.
 
 ## Contributing
 
