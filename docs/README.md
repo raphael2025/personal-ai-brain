@@ -8,3 +8,4 @@
 - [ADR 0002 — modular monolith and workers](adr/0002-modular-monolith-and-workers.md)
 - [Evaluation plan](research/evaluation-plan.md)
 - [Milestone 0 acceptance checklist](development/milestone-0-checklist.md)
+- [GitHub repository hardening and maintainer guide](operations/github-maintenance.md)
