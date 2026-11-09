@@ -2,6 +2,7 @@
 
 - [Architecture overview](architecture/overview.md)
 - [Asset Registry domain design](architecture/asset-registry.md)
+- [Persistent registry data model proposal](architecture/registry-data-model.md)
 - [Worker contract](architecture/worker-contract.md)
 - [Initial threat model](architecture/threat-model.md)
 - [ADR 0001 — local-first and source-of-truth boundaries](adr/0001-local-first-and-source-of-truth.md)
