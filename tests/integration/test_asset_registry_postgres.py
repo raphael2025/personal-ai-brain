@@ -325,3 +325,24 @@ def test_same_content_in_two_assets_is_not_automatically_merged(db) -> None:
     ).fetchone()[0]
 
     assert count == 2
+
+
+
+def test_duplicate_storage_root_registration_is_rejected(db) -> None:
+    seeded = seed_location(db)
+
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        with db.transaction():
+            db.execute(
+                """
+                INSERT INTO storage_roots (id, display_name, uri, kind)
+                VALUES (%s, 'Duplicate root', 'file:///tmp/brain-test', 'local')
+                """,
+                (uuid4(),),
+            )
+
+    root_count = db.execute(
+        "SELECT count(*) FROM storage_roots WHERE id = %s",
+        (seeded["root_id"],),
+    ).fetchone()[0]
+    assert root_count == 1
