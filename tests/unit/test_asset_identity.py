@@ -45,3 +45,22 @@ def test_chunk_size_must_be_positive(tmp_path: Path) -> None:
     source.write_text("data", encoding="utf-8")
     with pytest.raises(ValueError, match="chunk_size"):
         identify_file(source, chunk_size=0)
+
+
+def test_directory_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="regular"):
+        identify_file(tmp_path)
+
+
+def test_symlink_to_regular_file_is_rejected(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("do not follow", encoding="utf-8")
+    link = tmp_path / "link.txt"
+
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"file symlinks are unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="symlink"):
+        identify_file(link)
