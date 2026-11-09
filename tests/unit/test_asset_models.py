@@ -62,3 +62,57 @@ def test_asset_location_keeps_availability_explicit() -> None:
         availability=LocationAvailability.UNAVAILABLE,
     )
     assert location.availability is LocationAvailability.UNAVAILABLE
+
+
+
+@pytest.mark.parametrize(
+    "uri,kind",
+    [
+        ("file:relative/archive", StorageKind.LOCAL),
+        ("file://nas.local/share", StorageKind.LOCAL),
+        ("smb://nas.local", StorageKind.NETWORK),
+        ("nfs:///export", StorageKind.NETWORK),
+    ],
+)
+def test_storage_root_rejects_non_absolute_or_incomplete_uri(
+    uri: str, kind: StorageKind
+) -> None:
+    with pytest.raises(ValueError):
+        StorageRoot("root-1", "Archive", uri, kind)
+
+
+def test_storage_root_rejects_non_enum_kind() -> None:
+    with pytest.raises(ValueError, match="StorageKind"):
+        StorageRoot("root-1", "Archive", "file:///srv/archive", "local")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("enabled", 1),
+        ("follow_symlinks", 0),
+    ],
+)
+def test_storage_root_requires_boolean_flags(field: str, value: object) -> None:
+    values = {
+        "root_id": "root-1",
+        "display_name": "Archive",
+        "uri": "file:///srv/archive",
+        "kind": StorageKind.LOCAL,
+        "enabled": True,
+        "follow_symlinks": False,
+    }
+    values[field] = value
+
+    with pytest.raises(ValueError, match="boolean"):
+        StorageRoot(**values)  # type: ignore[arg-type]
+
+
+def test_asset_location_rejects_non_enum_availability() -> None:
+    with pytest.raises(ValueError, match="LocationAvailability"):
+        AssetLocation("root-1", "docs/readme.md", availability="available")  # type: ignore[arg-type]
+
+
+def test_asset_location_rejects_nul_character() -> None:
+    with pytest.raises(ValueError, match="NUL"):
+        AssetLocation("root-1", "docs/\x00readme.md")
