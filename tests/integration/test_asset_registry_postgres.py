@@ -157,7 +157,12 @@ def test_incomplete_scan_cannot_mark_location_missing(db, status: str) -> None:
 
     with pytest.raises(psycopg.Error):
         with db.transaction():
-            reconcile_complete_scan(db, scan_id)
+            if status == "running":
+                db.execute(
+                    "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+                )
+            else:
+                reconcile_complete_scan(db, scan_id)
 
     state = db.execute(
         "SELECT availability FROM asset_locations WHERE id = %s",
@@ -170,6 +175,7 @@ def test_complete_scan_refreshes_seen_and_excluded_locations(db) -> None:
     seeded = seed_location(db)
     scan_id = create_scan(db, seeded["root_id"])
     add_observation(db, scan_id, "docs/readme.md", excluded=True)
+    finish_scan(db, scan_id)
 
     changed = db.execute(
         "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
@@ -266,6 +272,7 @@ def test_rename_keeps_asset_identity_and_marks_old_path_missing(db) -> None:
     )
     scan_id = create_scan(db, seeded["root_id"])
     add_observation(db, scan_id, "new-name.md")
+    finish_scan(db, scan_id)
 
     db.execute("SELECT reconcile_missing_asset_locations(%s)", (scan_id,))
 
