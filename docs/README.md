@@ -17,6 +17,7 @@
 - [Initial threat model](architecture/threat-model.md)
 
 ## Research and operations
+- [Technology evaluation — OpenViking, MemOS, Cognee, and hybrid baseline](research/technology-evaluation-2026-11.md)
 - [Evaluation plan](research/evaluation-plan.md)
 - [Milestone 0 acceptance checklist](development/milestone-0-checklist.md)
 - [GitHub repository hardening and maintainer guide](operations/github-maintenance.md)
