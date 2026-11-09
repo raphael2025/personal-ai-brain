@@ -118,6 +118,7 @@ def test_scan_directory_does_not_follow_directory_replaced_by_symlink(
             child.symlink_to(outside, target_is_directory=True)
         return real_open(path, flags, *args, **kwargs)
 
+    monkeypatch.setattr(scanner_module, "_secure_traversal_supported", lambda: True)
     monkeypatch.setattr(scanner_module.os, "open", replace_with_symlink_before_open)
 
     result = scan_directory(root)
