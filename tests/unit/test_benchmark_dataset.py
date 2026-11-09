@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from personal_ai_brain.evaluation.dataset import validate_dataset
 
 
