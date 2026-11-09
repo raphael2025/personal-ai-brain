@@ -1,0 +1,262 @@
+"""PostgreSQL integration tests for the initial Asset Registry migration."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+DATABASE_URL = os.getenv("PERSONAL_AI_BRAIN_TEST_DATABASE_URL")
+if not DATABASE_URL:
+    pytest.skip("PostgreSQL test database URL is not configured", allow_module_level=True)
+
+psycopg = pytest.importorskip("psycopg")
+from psycopg import sql  # noqa: E402
+
+MIGRATION = (
+    Path(__file__).parents[2]
+    / "infrastructure"
+    / "postgres"
+    / "migrations"
+    / "0001_asset_registry.sql"
+)
+
+
+@pytest.fixture
+def db():
+    connection = psycopg.connect(DATABASE_URL)
+    schema_name = f"brain_test_{uuid4().hex}"
+    try:
+        connection.execute(
+            sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema_name))
+        )
+        connection.execute(
+            sql.SQL("SET search_path TO {}").format(sql.Identifier(schema_name))
+        )
+        connection.execute(MIGRATION.read_text(encoding="utf-8"))
+        yield connection
+    finally:
+        connection.rollback()
+        connection.close()
+
+
+def seed_location(db, *, path: str = "docs/readme.md") -> dict[str, object]:
+    root_id = uuid4()
+    asset_id = uuid4()
+    version_id = uuid4()
+    location_id = uuid4()
+    db.execute(
+        """
+        INSERT INTO storage_roots (id, display_name, uri, kind)
+        VALUES (%s, 'Test root', 'file:///tmp/brain-test', 'local')
+        """,
+        (root_id,),
+    )
+    db.execute("INSERT INTO assets (id) VALUES (%s)", (asset_id,))
+    db.execute(
+        """
+        INSERT INTO asset_versions (id, asset_id, sha256, size_bytes)
+        VALUES (%s, %s, %s, 4)
+        """,
+        (version_id, asset_id, "a" * 64),
+    )
+    db.execute(
+        """
+        INSERT INTO asset_locations (
+            id, asset_id, storage_root_id, current_version_id,
+            relative_path, normalized_path_key, path_normalizer_version
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, 'v1')
+        """,
+        (location_id, asset_id, root_id, version_id, path, path.casefold()),
+    )
+    return {
+        "root_id": root_id,
+        "asset_id": asset_id,
+        "version_id": version_id,
+        "location_id": location_id,
+    }
+
+
+def create_scan(db, root_id, *, status: str = "complete"):
+    scan_id = uuid4()
+    finished = "now()" if status in {
+        "complete",
+        "partial",
+        "failed",
+        "cancelled",
+    } else "NULL"
+    db.execute(
+        f"""
+        INSERT INTO scan_runs (
+            id, storage_root_id, status, scanner_version, finished_at
+        )
+        VALUES (%s, %s, %s, 'integration-test', {finished})
+        """,
+        (scan_id, root_id, status),
+    )
+    return scan_id
+
+
+def add_observation(db, scan_id, path: str, *, excluded: bool = False):
+    db.execute(
+        """
+        INSERT INTO scan_observations (
+            id, scan_run_id, relative_path, normalized_path_key,
+            path_normalizer_version, entry_kind, size_bytes, is_excluded
+        )
+        VALUES (%s, %s, %s, %s, 'v1', 'file', 4, %s)
+        """,
+        (uuid4(), scan_id, path, path.casefold(), excluded),
+    )
+
+
+def test_complete_scan_marks_unobserved_location_missing_and_logs_event(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+
+    changed = db.execute(
+        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+    ).fetchone()[0]
+    state = db.execute(
+        "SELECT availability FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+    event_count = db.execute(
+        "SELECT count(*) FROM asset_location_events WHERE scan_run_id = %s",
+        (scan_id,),
+    ).fetchone()[0]
+
+    assert changed == 1
+    assert state == "missing"
+    assert event_count == 1
+
+
+@pytest.mark.parametrize("status", ["partial", "failed", "cancelled", "running"])
+def test_incomplete_scan_cannot_mark_location_missing(db, status: str) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"], status=status)
+
+    with pytest.raises(psycopg.Error):
+        with db.transaction():
+            db.execute("SELECT reconcile_missing_asset_locations(%s)", (scan_id,))
+
+    state = db.execute(
+        "SELECT availability FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+    assert state == "present"
+
+
+def test_complete_scan_refreshes_seen_and_excluded_locations(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+    add_observation(db, scan_id, "docs/readme.md", excluded=True)
+
+    changed = db.execute(
+        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+    ).fetchone()[0]
+    state = db.execute(
+        "SELECT availability FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+
+    assert changed == 1
+    assert state == "excluded"
+
+
+def test_duplicate_observation_delivery_is_rejected(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+    add_observation(db, scan_id, "docs/readme.md")
+
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        with db.transaction():
+            add_observation(db, scan_id, "docs/readme.md")
+
+
+def test_observations_are_immutable_after_scan_completion(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+
+    with pytest.raises(psycopg.errors.RaiseException):
+        with db.transaction():
+            add_observation(db, scan_id, "late.txt")
+
+
+def test_terminal_scan_cannot_be_reopened(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+
+    with pytest.raises(psycopg.errors.RaiseException):
+        with db.transaction():
+            db.execute(
+                "UPDATE scan_runs SET status = 'running', finished_at = NULL WHERE id = %s",
+                (scan_id,),
+            )
+
+
+def test_content_change_adds_version_without_overwriting_history(db) -> None:
+    seeded = seed_location(db)
+    next_version_id = uuid4()
+    db.execute(
+        """
+        INSERT INTO asset_versions (id, asset_id, sha256, size_bytes)
+        VALUES (%s, %s, %s, 5)
+        """,
+        (next_version_id, seeded["asset_id"], "b" * 64),
+    )
+    db.execute(
+        "UPDATE asset_locations SET current_version_id = %s WHERE id = %s",
+        (next_version_id, seeded["location_id"]),
+    )
+
+    versions = db.execute(
+        "SELECT count(*) FROM asset_versions WHERE asset_id = %s",
+        (seeded["asset_id"],),
+    ).fetchone()[0]
+    current_version = db.execute(
+        "SELECT current_version_id FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+
+    assert versions == 2
+    assert current_version == next_version_id
+
+
+def test_rename_keeps_asset_identity_and_marks_old_path_missing(db) -> None:
+    seeded = seed_location(db, path="old-name.md")
+    new_location_id = uuid4()
+    db.execute(
+        """
+        INSERT INTO asset_locations (
+            id, asset_id, storage_root_id, current_version_id,
+            relative_path, normalized_path_key, path_normalizer_version
+        )
+        VALUES (%s, %s, %s, %s, 'new-name.md', 'new-name.md', 'v1')
+        """,
+        (
+            new_location_id,
+            seeded["asset_id"],
+            seeded["root_id"],
+            seeded["version_id"],
+        ),
+    )
+    scan_id = create_scan(db, seeded["root_id"])
+    add_observation(db, scan_id, "new-name.md")
+
+    db.execute("SELECT reconcile_missing_asset_locations(%s)", (scan_id,))
+
+    old_state = db.execute(
+        "SELECT availability FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+    new_asset_id = db.execute(
+        "SELECT asset_id FROM asset_locations WHERE id = %s",
+        (new_location_id,),
+    ).fetchone()[0]
+
+    assert old_state == "missing"
+    assert new_asset_id == seeded["asset_id"]
