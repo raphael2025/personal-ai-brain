@@ -2,7 +2,7 @@
 
 This is the execution map for turning the architecture into a working product. Implement each work package as focused PRs with tests. Dependencies are deliberate; do not build UI on unstable contracts.
 
-## A — Asset Registry (P0) — [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1)
+## A — Asset Registry (P0) — [Issue #32](https://github.com/raphael2025/personal-ai-brain/issues/32) (services/CLI), [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10) (schema merged), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1) (domain models merged)
 
 Goal: know which assets exist, where they are, and which versions were observed.
 
@@ -22,7 +22,7 @@ Initial extractors: text/Markdown, PDF, DOCX, HTML, source code; then image meta
 
 Acceptance: malformed/adversarial synthetic corpus; unsupported types explicitly reported; same source+extractor+config idempotent; source never modified.
 
-## D — Search and Evaluation (P1) — [Issue #23](https://github.com/raphael2025/personal-ai-brain/issues/23)
+## D — Search and Evaluation (P1) — [Issue #23](https://github.com/raphael2025/personal-ai-brain/issues/23); technology review: [evaluation report](../research/technology-evaluation-2026-11.md)
 
 Build labelled synthetic query corpus, lexical BM25 baseline, root/type/time filters, optional vector channel, hybrid rank fusion, evidence spans/citations, ranking regression tests.
 
