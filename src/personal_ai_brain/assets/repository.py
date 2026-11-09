@@ -264,7 +264,8 @@ class PostgresAssetRegistryRepository:
                             "INSERT INTO assets (id) VALUES (%s)", (asset_id,)
                         )
                     else:
-                        location_id, asset_id, _current_version_id, _current_relative_path = existing_location
+                        location_id = existing_location[0]
+                        asset_id = existing_location[1]
 
                     version = connection.execute(
                         """
@@ -307,7 +308,12 @@ class PostgresAssetRegistryRepository:
                             ),
                         )
                     else:
-                        location_id, asset_id, current_version_id, current_relative_path = existing_location
+                        (
+                            location_id,
+                            asset_id,
+                            current_version_id,
+                            current_relative_path,
+                        ) = existing_location
                         if (
                             current_version_id != version_id
                             or observation.relative_path != current_relative_path
