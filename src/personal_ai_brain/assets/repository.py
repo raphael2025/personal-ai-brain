@@ -257,7 +257,7 @@ class PostgresAssetRegistryRepository:
                         item.size_bytes,
                     )
                     for item in observations
-                )
+                , key=lambda row: row[0])
                 existing = connection.execute(
                     """
                     SELECT o.relative_path, o.normalized_path_key,
@@ -270,7 +270,11 @@ class PostgresAssetRegistryRepository:
                     """
                     (scan_uuid,),
                 ).fetchall()
-                if stored_status != status.value or stored_error != error_summary or existing != expected:
+                if (
+                    stored_status != status.value
+                    or stored_error != error_summary
+                    or existing != expected
+                ):
                     raise IdempotencyConflict(
                         "scan finalization was already committed with different data"
                     )
