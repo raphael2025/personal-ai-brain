@@ -40,11 +40,11 @@ CREATE INDEX asset_versions_fingerprint_idx
 CREATE FUNCTION prevent_asset_version_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $asset_version$
 BEGIN
     RAISE EXCEPTION 'asset versions are immutable; insert a new version instead';
 END;
-$;
+$asset_version$;
 
 CREATE TRIGGER asset_versions_immutable
     BEFORE UPDATE OR DELETE ON asset_versions
