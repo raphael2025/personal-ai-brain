@@ -1,8 +1,8 @@
 """Validation for the project's small, redistributable retrieval benchmark."""
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 
