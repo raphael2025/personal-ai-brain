@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from personal_ai_brain.assets import scanner as scanner_module
 from personal_ai_brain.assets.scanner import (
     EntryKind,
     ScanStatus,
@@ -130,3 +131,49 @@ def test_scan_directory_does_not_follow_directory_replaced_by_symlink(
         issue.relative_path == "child" and issue.operation == "open_directory"
         for issue in result.issues
     )
+
+
+
+def test_disappearing_file_is_reported_as_partial_scan(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    source = root / "vanish.txt"
+    source.write_text("temporary", encoding="utf-8")
+    real_scandir = scanner_module.os.scandir
+
+    class RemoveBeforeStat:
+        def __init__(self, iterator):
+            self.iterator = iterator
+
+        def __enter__(self):
+            self.iterator.__enter__()
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return self.iterator.__exit__(exc_type, exc_value, traceback)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            entry = next(self.iterator)
+            if entry.name == "vanish.txt":
+                source.unlink()
+            return entry
+
+    def disappearing_scandir(directory_fd):
+        return RemoveBeforeStat(real_scandir(directory_fd))
+
+    monkeypatch.setattr(scanner_module, "_secure_traversal_supported", lambda: True)
+    monkeypatch.setattr(scanner_module.os, "scandir", disappearing_scandir)
+
+    result = scan_directory(root)
+
+    assert result.status is ScanStatus.PARTIAL
+    assert not source.exists()
+    assert len(result.issues) == 1
+    assert result.issues[0].relative_path == "vanish.txt"
+    assert result.issues[0].operation == "stat_entry"
+    assert result.issues[0].error_type == "FileNotFoundError"
