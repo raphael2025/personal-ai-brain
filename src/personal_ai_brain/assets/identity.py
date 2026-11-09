@@ -56,7 +56,13 @@ def identify_file(path: Path, *, chunk_size: int = 1024 * 1024) -> FileIdentity:
     if stat.S_ISLNK(before_path.st_mode) or not stat.S_ISREG(before_path.st_mode):
         raise ValueError(f"Not a regular non-symlink file: {path}")
 
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+    )
     file_descriptor = os.open(path, flags)
     with os.fdopen(file_descriptor, "rb") as stream:
         before_fd = os.fstat(stream.fileno())
@@ -125,7 +131,13 @@ def identify_file_at(
         | os.O_NOFOLLOW
         | getattr(os, "O_CLOEXEC", 0)
     )
-    file_flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | os.O_NOFOLLOW
+    file_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_BINARY", 0)
+        | os.O_NOFOLLOW
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+    )
     opened_directories: list[int] = []
     root_fd: int | None = None
     file_fd: int | None = None
