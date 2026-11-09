@@ -115,6 +115,7 @@ def scan_directory(root: Path) -> ScanResult:
         | os.O_NOFOLLOW
         | getattr(os, "O_CLOEXEC", 0)
     )
+    root_fd: int | None = None
     try:
         root_fd = os.open(root, directory_flags)
         root_stat = os.fstat(root_fd)
@@ -127,6 +128,8 @@ def scan_directory(root: Path) -> ScanResult:
                 "NotADirectoryError",
             )
     except OSError as exc:
+        if root_fd is not None:
+            os.close(root_fd)
         return _failed_result(root, started_at, "open_root", type(exc).__name__)
 
     observations: list[ScanObservation] = []
