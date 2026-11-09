@@ -47,7 +47,7 @@ A file that changes or becomes inaccessible between discovery and hashing makes 
 
 ## Important limitations
 
-- The initial service uses path-based file reopening for hashing after descriptor-relative discovery. It detects metadata/content changes during hashing and refuses symlinks, but it is not a complete sandbox against hostile concurrent directory replacement. Do not treat it as a security boundary for adversarially mutable roots; see the scanner threat model and Issue #12.
+- Hashing uses descriptor-relative opens beneath the configured root, O_NOFOLLOW on each path component, discovery-metadata checks, and before/after file-descriptor checks. It fails closed when the platform lacks the required primitives. This prevents symlink traversal during the hash phase, but it is not a complete sandbox against every hostile concurrent rename pattern; see the scanner threat model and Issue #12.
 - Network roots require an operator-provided local mount path. No SMB/NFS client, mount management, or remote credential storage is included.
 - A process crash can leave a scan in RUNNING. Durable scan/job recovery and worker leases are follow-up work.
 - The CLI currently supports root enrollment/listing and scanning. Asset browsing, scan resume, dry-run reconciliation, and explicit normalizer migration are follow-up work.
