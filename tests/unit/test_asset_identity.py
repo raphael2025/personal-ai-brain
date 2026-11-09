@@ -163,3 +163,66 @@ def test_in_place_mutation_during_hash_is_rejected(
 
     assert calls == 2
     assert source.read_bytes() == b"changed payload with another size"
+
+
+
+def test_identify_file_at_hashes_only_beneath_root(tmp_path: Path) -> None:
+    from personal_ai_brain.assets.identity import identify_file_at
+
+    root = tmp_path / "root"
+    root.mkdir()
+    nested = root / "docs"
+    nested.mkdir()
+    source = nested / "notes.md"
+    source.write_bytes(b"descriptor relative")
+
+    identity = identify_file_at(
+        root,
+        "docs/notes.md",
+        expected_size=source.stat().st_size,
+        expected_mtime_ns=source.stat().st_mtime_ns,
+    )
+    assert identity == identify_file(source)
+
+
+@pytest.mark.parametrize("relative_path", ["/etc/passwd", "../secret", "docs/../secret"])
+def test_identify_file_at_rejects_traversal(
+    tmp_path: Path, relative_path: str
+) -> None:
+    from personal_ai_brain.assets.identity import identify_file_at
+
+    with pytest.raises(ValueError, match="relative_path"):
+        identify_file_at(tmp_path, relative_path)
+
+
+def test_identify_file_at_rejects_symlinked_directory(tmp_path: Path) -> None:
+    from personal_ai_brain.assets.identity import identify_file_at
+
+    root = tmp_path / "root"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    target = outside / "secret.txt"
+    target.write_text("outside", encoding="utf-8")
+    try:
+        (root / "linked").symlink_to(outside, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"directory symlinks are unavailable: {exc}")
+
+    with pytest.raises(OSError):
+        identify_file_at(root, "linked/secret.txt")
+
+
+def test_identify_file_at_rejects_stale_discovery_metadata(tmp_path: Path) -> None:
+    from personal_ai_brain.assets.identity import (
+        FileChangedDuringReadError,
+        identify_file_at,
+    )
+
+    root = tmp_path / "root"
+    root.mkdir()
+    source = root / "notes.md"
+    source.write_text("new content", encoding="utf-8")
+
+    with pytest.raises(FileChangedDuringReadError, match="size changed"):
+        identify_file_at(root, "notes.md", expected_size=1)
