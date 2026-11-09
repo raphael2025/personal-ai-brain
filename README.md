@@ -24,7 +24,7 @@ The system is designed around four principles:
 - 多个 AI 客户端共享同一套受权限控制的记忆接口。
 - 项目目前处于 Phase 0，尚未达到可用于真实个人档案的生产状态。
 
-文档入口：[中文/英文架构文档](docs/README.md) · [开发路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+文档入口：[项目状态](PROJECT_STATUS.md) · [中文/英文架构文档](docs/README.md) · [开发路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) / [中文贡献指南](CONTRIBUTING.zh-CN.md)
 
 ## Goals
 
