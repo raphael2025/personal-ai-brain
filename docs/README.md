@@ -16,6 +16,9 @@
 - [Worker contract](architecture/worker-contract.md)
 - [Initial threat model](architecture/threat-model.md)
 
+## Development
+- [Asset Registry service and CLI](development/registry-service.md)
+
 ## Research and operations
 - [Evaluation plan](research/evaluation-plan.md)
 - [Milestone 0 acceptance checklist](development/milestone-0-checklist.md)
