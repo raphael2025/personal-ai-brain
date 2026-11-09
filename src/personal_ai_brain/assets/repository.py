@@ -110,6 +110,8 @@ class PostgresAssetRegistryRepository:
     def register_root(
         self, root: StorageRoot, *, path_case_sensitive: bool | None = None
     ) -> None:
+        if path_case_sensitive is not None and type(path_case_sensitive) is not bool:
+            raise ValueError("path_case_sensitive must be a boolean or None")
         normalizer = "v1-casefold" if path_case_sensitive is False else "v1-exact"
         with self._connection() as connection:
             connection.execute(
