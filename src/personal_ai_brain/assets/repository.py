@@ -210,7 +210,7 @@ class PostgresAssetRegistryRepository:
 
     @staticmethod
     def _normalized_key(relative_path: str, normalizer_version: str) -> str:
-        normalized = relative_path.replace("\\", "/")
+        normalized = relative_path
         if normalizer_version.endswith("-casefold"):
             return normalized.casefold()
         return normalized
