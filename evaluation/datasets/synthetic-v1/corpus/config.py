@@ -1,0 +1,3 @@
+PROJECT_NAME = "Cedar"
+DEFAULT_REGION = "eu-west-1"
+MAX_WORKERS = 6
