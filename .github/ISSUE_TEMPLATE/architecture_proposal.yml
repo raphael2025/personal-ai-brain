@@ -1,7 +1,6 @@
 name: Architecture or research proposal
 description: Propose a design change or contribute technical research
 title: "[Proposal]: "
-labels: ["architecture", "research"]
 body:
   - type: textarea
     id: context
