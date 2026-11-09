@@ -1,0 +1,32 @@
+name: Architecture or research proposal
+description: Propose a design change or contribute technical research
+title: "[Proposal]: "
+labels: ["architecture", "research"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and problem
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal or findings
+      description: Describe the design, experiment, or research results.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and references
+      description: Link reproducible experiments, upstream documentation, benchmarks, and licenses.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
