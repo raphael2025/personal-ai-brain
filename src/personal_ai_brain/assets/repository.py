@@ -7,13 +7,14 @@ psycopg only when PostgreSQL persistence is selected.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Protocol
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from personal_ai_brain.assets.models import StorageKind, StorageRoot
-from personal_ai_brain.assets.scanner import ScanObservation, ScanStatus
+from personal_ai_brain.assets.scanner import EntryKind, ScanObservation, ScanStatus
 
 
 @dataclass(frozen=True, slots=True)
