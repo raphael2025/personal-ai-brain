@@ -1,0 +1,91 @@
+from pathlib import Path
+
+import pytest
+
+from personal_ai_brain.assets.scanner import (
+    EntryKind,
+    ScanStatus,
+    scan_directory,
+)
+
+
+def test_scan_directory_discovers_nested_and_hidden_entries(tmp_path: Path) -> None:
+    root = tmp_path / "archive"
+    nested = root / "nested"
+    nested.mkdir(parents=True)
+    (root / ".hidden").write_text("hidden", encoding="utf-8")
+    (nested / "note.txt").write_text("hello", encoding="utf-8")
+
+    result = scan_directory(root)
+
+    assert result.status is ScanStatus.COMPLETE
+    observed = {item.relative_path: item for item in result.observations}
+    assert ".hidden" in observed
+    assert "nested" in observed
+    assert "nested/note.txt" in observed
+    assert observed["nested"].kind is EntryKind.DIRECTORY
+    assert observed["nested/note.txt"].kind is EntryKind.FILE
+    assert observed["nested/note.txt"].size_bytes == 5
+    assert result.issues == ()
+
+
+def test_scan_directory_missing_root_is_failed_not_empty_success(
+    tmp_path: Path,
+) -> None:
+    result = scan_directory(tmp_path / "does-not-exist")
+
+    assert result.status is ScanStatus.FAILED
+    assert result.observations == ()
+    assert len(result.issues) == 1
+    assert result.issues[0].operation == "open_root"
+
+
+def test_scan_directory_rejects_file_as_root(tmp_path: Path) -> None:
+    root_file = tmp_path / "not-a-directory"
+    root_file.write_text("data", encoding="utf-8")
+
+    result = scan_directory(root_file)
+
+    assert result.status is ScanStatus.FAILED
+    assert result.observations == ()
+
+
+def test_scan_directory_does_not_follow_directory_symlinks(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root"
+    outside = tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    (outside / "secret.txt").write_text("outside", encoding="utf-8")
+    link = root / "linked-directory"
+
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"directory symlinks are unavailable: {exc}")
+
+    result = scan_directory(root)
+
+    assert result.status is ScanStatus.COMPLETE
+    observed = {item.relative_path: item for item in result.observations}
+    assert "linked-directory" in observed
+    assert observed["linked-directory"].kind is EntryKind.SYMLINK
+    assert "linked-directory/secret.txt" not in observed
+
+
+def test_scan_directory_rejects_symlink_as_root(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "root-link"
+
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"directory symlinks are unavailable: {exc}")
+
+    result = scan_directory(link)
+
+    assert result.status is ScanStatus.FAILED
+    assert result.observations == ()
+    assert result.issues[0].operation == "open_root"
