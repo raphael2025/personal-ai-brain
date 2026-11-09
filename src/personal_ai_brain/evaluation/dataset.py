@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 REQUIRED_FIELDS = {
     "id",
     "category",
