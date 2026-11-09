@@ -28,8 +28,14 @@ class LocationAvailability(StrEnum):
 def _validate_storage_uri(uri: str, kind: StorageKind) -> str:
     if not isinstance(uri, str) or not uri or uri != uri.strip():
         raise ValueError("uri must be a non-empty, trimmed URI")
+    # urllib.parse.urlsplit strips some ASCII control characters. Validate the
+    # original value first so the checked representation is exactly what we store.
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in uri):
+        raise ValueError("uri must not contain ASCII control characters")
     try:
         parsed = urlsplit(uri)
+        # Accessing .port performs urllib's numeric/range validation.
+        port = parsed.port
     except ValueError as exc:
         raise ValueError("uri is malformed") from exc
 
@@ -52,6 +58,10 @@ def _validate_storage_uri(uri: str, kind: StorageKind) -> str:
             raise ValueError("smb and nfs URIs require network storage kind")
         if not parsed.hostname or not parsed.path.startswith("/"):
             raise ValueError("network URI must include a host and absolute share/export path")
+        if parsed.scheme == "smb" and not parsed.path.lstrip("/").split("/", 1)[0]:
+            raise ValueError("smb URI must include a share component")
+        if port == 0:
+            raise ValueError("network URI port must be between 1 and 65535")
     return uri
 
 
