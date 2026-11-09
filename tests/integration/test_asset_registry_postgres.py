@@ -346,3 +346,121 @@ def test_duplicate_storage_root_registration_is_rejected(db) -> None:
         (seeded["root_id"],),
     ).fetchone()[0]
     assert root_count == 1
+
+
+
+def test_scan_root_is_immutable_after_observations(db) -> None:
+    seeded = seed_location(db)
+    other_root_id = uuid4()
+    db.execute(
+        """
+        INSERT INTO storage_roots (id, display_name, uri, kind)
+        VALUES (%s, 'Other root', 'file:///tmp/other-root', 'local')
+        """,
+        (other_root_id,),
+    )
+    scan_id = create_scan(db, seeded["root_id"])
+    add_observation(db, scan_id, "docs/readme.md")
+
+    with pytest.raises(psycopg.errors.RaiseException, match="root is immutable"):
+        with db.transaction():
+            db.execute(
+                "UPDATE scan_runs SET storage_root_id = %s WHERE id = %s",
+                (other_root_id, scan_id),
+            )
+
+
+def test_asset_version_fingerprint_is_immutable(db) -> None:
+    seeded = seed_location(db)
+
+    with pytest.raises(psycopg.errors.RaiseException, match="immutable"):
+        with db.transaction():
+            db.execute(
+                "UPDATE asset_versions SET sha256 = %s WHERE id = %s",
+                ("d" * 64, seeded["version_id"]),
+            )
+
+    fingerprint = db.execute(
+        "SELECT sha256, size_bytes FROM asset_versions WHERE id = %s",
+        (seeded["version_id"],),
+    ).fetchone()
+    assert fingerprint == ("a" * 64, 4)
+
+
+def test_reconciliation_refuses_path_normalizer_version_mismatch(db) -> None:
+    seeded = seed_location(db)
+    db.execute(
+        """
+        UPDATE asset_locations
+           SET path_normalizer_version = 'v0'
+         WHERE id = %s
+        """,
+        (seeded["location_id"],),
+    )
+    scan_id = create_scan(db, seeded["root_id"])
+
+    with pytest.raises(psycopg.errors.RaiseException, match="normalizer version mismatch"):
+        with db.transaction():
+            reconcile_complete_scan(db, scan_id)
+
+    state = db.execute(
+        "SELECT availability FROM asset_locations WHERE id = %s",
+        (seeded["location_id"],),
+    ).fetchone()[0]
+    assert state == "available"
+
+
+def test_scan_observation_normalizer_must_match_scan(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+
+    with pytest.raises(psycopg.errors.RaiseException, match="must match"):
+        with db.transaction():
+            db.execute(
+                """
+                INSERT INTO scan_observations (
+                    id, scan_run_id, relative_path, normalized_path_key,
+                    path_normalizer_version, entry_kind
+                )
+                VALUES (%s, %s, 'docs/readme.md', 'docs/readme.md', 'v2', 'file')
+                """,
+                (uuid4(), scan_id),
+            )
+
+
+def test_pending_artifact_may_exist_without_output(db) -> None:
+    seeded = seed_location(db)
+    artifact_id = uuid4()
+    db.execute(
+        """
+        INSERT INTO processing_artifacts (
+            id, asset_version_id, artifact_type, processor_name,
+            processor_version, status
+        )
+        VALUES (%s, %s, 'text', 'extractor', '1.0', 'pending')
+        """,
+        (artifact_id, seeded["version_id"]),
+    )
+
+    status = db.execute(
+        "SELECT status FROM processing_artifacts WHERE id = %s",
+        (artifact_id,),
+    ).fetchone()[0]
+    assert status == "pending"
+
+
+def test_ready_artifact_requires_output(db) -> None:
+    seeded = seed_location(db)
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        with db.transaction():
+            db.execute(
+                """
+                INSERT INTO processing_artifacts (
+                    id, asset_version_id, artifact_type, processor_name,
+                    processor_version, status
+                )
+                VALUES (%s, %s, 'text', 'extractor', '1.0', 'ready')
+                """,
+                (uuid4(), seeded["version_id"]),
+            )
