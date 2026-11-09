@@ -100,7 +100,8 @@ CREATE TABLE scan_observations (
     is_excluded boolean NOT NULL DEFAULT false,
     observed_at timestamptz NOT NULL DEFAULT now(),
     CHECK (entry_kind = 'file' OR asset_version_id IS NULL),
-    UNIQUE (scan_run_id, relative_path)
+    UNIQUE (scan_run_id, relative_path),
+    UNIQUE (scan_run_id, normalized_path_key, path_normalizer_version)
 );
 
 CREATE INDEX scan_observations_path_idx
