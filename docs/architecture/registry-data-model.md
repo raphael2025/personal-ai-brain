@@ -1,6 +1,6 @@
 # Registry Data Model Proposal
 
-**Status:** proposal for community review; not yet an implemented database schema.
+**Status:** initial relational contract implemented in `infrastructure/postgres/migrations/0001_asset_registry.sql`; review and integration testing continue.
 
 The first domain models are persistence-agnostic. This document proposes the minimum relational records needed to preserve identity, location, scan history, and derived-artifact provenance without storing or modifying original files.
 
@@ -61,4 +61,4 @@ Do not collapse two locations solely because their normalized strings match unde
 - Which metadata belongs in the primary database versus a rebuildable sidecar?
 - Should scan observations be retained permanently or compacted after reconciliation?
 
-A database engine and ORM should not be selected until these semantics are reviewed and tested.
+PostgreSQL is the initial persistence target. The domain remains ORM-independent; the SQL migration is the executable contract. See [the schema implementation notes](registry-schema.md).
