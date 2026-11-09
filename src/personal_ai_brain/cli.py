@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from personal_ai_brain.assets.models import StorageKind, StorageRoot
 from personal_ai_brain.assets.repository import PostgresAssetRegistryRepository
+from personal_ai_brain.assets.scanner import ScanStatus
 from personal_ai_brain.assets.service import AssetRegistryService
 
 
