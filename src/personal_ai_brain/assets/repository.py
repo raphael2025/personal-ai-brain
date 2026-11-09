@@ -12,12 +12,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterator, Protocol
 from uuid import UUID, uuid4
 
-from personal_ai_brain.assets.models import (
-    LocationAvailability,
-    StorageKind,
-    StorageRoot,
-)
-from personal_ai_brain.assets.scanner import EntryKind, ScanObservation, ScanStatus
+from personal_ai_brain.assets.models import StorageKind, StorageRoot
+from personal_ai_brain.assets.scanner import ScanObservation, ScanStatus
 
 
 @dataclass(frozen=True, slots=True)
