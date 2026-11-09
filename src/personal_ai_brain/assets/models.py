@@ -26,24 +26,32 @@ class LocationAvailability(StrEnum):
 
 
 def _validate_storage_uri(uri: str, kind: StorageKind) -> str:
-    if not uri or uri != uri.strip():
+    if not isinstance(uri, str) or not uri or uri != uri.strip():
         raise ValueError("uri must be a non-empty, trimmed URI")
-    parsed = urlsplit(uri)
+    try:
+        parsed = urlsplit(uri)
+    except ValueError as exc:
+        raise ValueError("uri is malformed") from exc
+
     if parsed.scheme not in {"file", "smb", "nfs"}:
         raise ValueError("uri scheme must be file, smb, or nfs")
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("credentials must not be embedded in storage URIs")
     if parsed.query or parsed.fragment:
         raise ValueError("storage URI must not contain a query or fragment")
+
     if parsed.scheme == "file":
         if kind is StorageKind.NETWORK:
             raise ValueError("network storage must use smb or nfs URI")
-        if not parsed.path:
-            raise ValueError("file URI must include a path")
-    elif kind is not StorageKind.NETWORK:
-        raise ValueError("smb and nfs URIs require network storage kind")
-    elif not parsed.hostname or not parsed.path:
-        raise ValueError("network URI must include a host and share/export path")
+        if not parsed.path.startswith("/"):
+            raise ValueError("file URI must contain an absolute path")
+        if parsed.netloc not in {"", "localhost"}:
+            raise ValueError("remote file URI authorities are not supported; use smb or nfs")
+    else:
+        if kind is not StorageKind.NETWORK:
+            raise ValueError("smb and nfs URIs require network storage kind")
+        if not parsed.hostname or not parsed.path.startswith("/"):
+            raise ValueError("network URI must include a host and absolute share/export path")
     return uri
 
 
@@ -59,10 +67,16 @@ class StorageRoot:
     follow_symlinks: bool = False
 
     def __post_init__(self) -> None:
-        if not self.root_id or not self.root_id.strip():
-            raise ValueError("root_id must be non-empty")
-        if not self.display_name or not self.display_name.strip():
-            raise ValueError("display_name must be non-empty")
+        if not isinstance(self.root_id, str) or not self.root_id.strip():
+            raise ValueError("root_id must be a non-empty string")
+        if not isinstance(self.display_name, str) or not self.display_name.strip():
+            raise ValueError("display_name must be a non-empty string")
+        if not isinstance(self.kind, StorageKind):
+            raise ValueError("kind must be a StorageKind")
+        if type(self.enabled) is not bool:
+            raise ValueError("enabled must be a boolean")
+        if type(self.follow_symlinks) is not bool:
+            raise ValueError("follow_symlinks must be a boolean")
         object.__setattr__(self, "uri", _validate_storage_uri(self.uri, self.kind))
         if self.follow_symlinks:
             raise ValueError("following symlinks is not supported by the initial scanner")
@@ -77,11 +91,16 @@ class AssetLocation:
     availability: LocationAvailability = LocationAvailability.AVAILABLE
 
     def __post_init__(self) -> None:
-        if not self.root_id or not self.root_id.strip():
-            raise ValueError("root_id must be non-empty")
-        if not self.relative_path or not self.relative_path.strip():
-            raise ValueError("relative_path must be non-empty")
+        if not isinstance(self.root_id, str) or not self.root_id.strip():
+            raise ValueError("root_id must be a non-empty string")
+        if not isinstance(self.relative_path, str) or not self.relative_path.strip():
+            raise ValueError("relative_path must be a non-empty string")
+        if not isinstance(self.availability, LocationAvailability):
+            raise ValueError("availability must be a LocationAvailability")
+
         normalized = self.relative_path.replace("\\", "/")
+        if "\x00" in normalized:
+            raise ValueError("relative_path must not contain NUL")
         if normalized.startswith("/") or re.match(r"^[A-Za-z]:", normalized):
             raise ValueError("relative_path must not be absolute")
         parts = normalized.split("/")
