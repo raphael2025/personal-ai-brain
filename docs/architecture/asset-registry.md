@@ -22,7 +22,7 @@
 ## Scan semantics
 A scan has explicit states: PENDING, RUNNING, COMPLETED, PARTIAL, FAILED, CANCELLED.
 
-A location may be marked MISSING only after a successful, complete scan of the relevant root. If a root is unavailable, permission is denied, or traversal is incomplete, prior observations remain intact and the scan is marked partial/failed.
+The initial read-only scanner is implemented in `personal_ai_brain.assets.scanner`. It records relative paths and basic metadata, does not follow symlinks, and returns COMPLETE, PARTIAL, or FAILED. Only COMPLETE scans may be considered for absence reconciliation. PARTIAL and FAILED scans must never mark previously registered locations missing.
 
 ## Initial metadata
 - Asset ID
