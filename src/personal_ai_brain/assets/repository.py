@@ -247,17 +247,22 @@ class PostgresAssetRegistryRepository:
             if stored_status != "running":
                 expected = sorted(
                     (
-                        item.observation.relative_path,
-                        self._normalized_key(item.observation.relative_path, normalizer_version),
-                        normalizer_version,
-                        item.observation.kind.value,
-                        item.observation.size_bytes,
-                        item.observation.modified_time_ns,
-                        item.sha256,
-                        item.size_bytes,
-                    )
-                    for item in observations
-                , key=lambda row: row[0])
+                        (
+                            item.observation.relative_path,
+                            self._normalized_key(
+                                item.observation.relative_path, normalizer_version
+                            ),
+                            normalizer_version,
+                            item.observation.kind.value,
+                            item.observation.size_bytes,
+                            item.observation.modified_time_ns,
+                            item.sha256,
+                            item.size_bytes,
+                        )
+                        for item in observations
+                    ),
+                    key=lambda row: row[0],
+                )
                 existing = connection.execute(
                     """
                     SELECT o.relative_path, o.normalized_path_key,
