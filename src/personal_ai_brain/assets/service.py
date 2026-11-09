@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from personal_ai_brain.assets.identity import FileChangedDuringReadError, identify_file
+from personal_ai_brain.assets.identity import FileChangedDuringReadError, identify_file_at
 from personal_ai_brain.assets.repository import (
     AssetRegistryRepository,
     PreparedObservation,
@@ -79,16 +79,12 @@ class AssetRegistryService:
                     prepared.append(PreparedObservation(observation))
                     continue
                 try:
-                    file_path = path / observation.relative_path
-                    identity = identify_file(file_path)
-                    after_hash = file_path.stat()
-                    if (
-                        identity.size_bytes != observation.size_bytes
-                        or after_hash.st_mtime_ns != observation.modified_time_ns
-                    ):
-                        raise FileChangedDuringReadError(
-                            "source changed after directory discovery"
-                        )
+                    identity = identify_file_at(
+                        path,
+                        observation.relative_path,
+                        expected_size=observation.size_bytes,
+                        expected_mtime_ns=observation.modified_time_ns,
+                    )
                 except (OSError, RuntimeError, ValueError) as exc:
                     issues.append(
                         ScanIssue(
