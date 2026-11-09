@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             for issue in execution.result.issues:
                 print(
-                    f"issue path={issue.relative_path} operation={issue.operation} "
+                    f"issue path={issue.relative_path!r} operation={issue.operation} "
                     f"error={issue.error_type}",
                     file=sys.stderr,
                 )
