@@ -74,6 +74,15 @@ There is no supported installation yet. Phase 0 will establish the repository st
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), check the roadmap, and open an issue before making large architectural changes.
 
+Good starting points:
+- [Define StorageRoot and AssetLocation models](https://github.com/raphael2025/personal-ai-brain/issues/1)
+- [Implement safe directory discovery](https://github.com/raphael2025/personal-ai-brain/issues/2)
+- [Expand file identity tests](https://github.com/raphael2025/personal-ai-brain/issues/3)
+- [Create a synthetic evaluation corpus](https://github.com/raphael2025/personal-ai-brain/issues/4)
+- [Review memory/retrieval technology choices](https://github.com/raphael2025/personal-ai-brain/issues/5)
+
+Please keep contributions evidence-based. Proposed integrations must not be described as working until tested.
+
 ## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
