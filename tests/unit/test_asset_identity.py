@@ -45,3 +45,72 @@ def test_chunk_size_must_be_positive(tmp_path: Path) -> None:
     source.write_text("data", encoding="utf-8")
     with pytest.raises(ValueError, match="chunk_size"):
         identify_file(source, chunk_size=0)
+
+
+def test_large_file_is_hashed_with_small_chunks_and_source_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    import hashlib
+
+    payload = bytes(range(256)) * 8193
+    source = tmp_path / "large.bin"
+    source.write_bytes(payload)
+
+    identity = identify_file(source, chunk_size=4093)
+
+    assert identity.sha256 == hashlib.sha256(payload).hexdigest()
+    assert identity.size_bytes == len(payload)
+    assert source.read_bytes() == payload
+
+
+def test_replacement_after_open_is_rejected_deterministically(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    from personal_ai_brain.assets import identity as identity_module
+    from personal_ai_brain.assets.identity import FileChangedDuringReadError
+
+    source = tmp_path / "changing.bin"
+    original = b"original bytes"
+    replacement = b"replacement bytes"
+    source.write_bytes(original)
+    moved = tmp_path / "opened-original.bin"
+    real_open = os.open
+    replaced = False
+
+    def open_then_replace(path, flags, *args, **kwargs):
+        nonlocal replaced
+        descriptor = real_open(path, flags, *args, **kwargs)
+        if Path(path) == source and not replaced:
+            replaced = True
+            source.rename(moved)
+            source.write_bytes(replacement)
+        return descriptor
+
+    monkeypatch.setattr(identity_module.os, "open", open_then_replace)
+
+    with pytest.raises(FileChangedDuringReadError):
+        identify_file(source)
+
+    assert moved.read_bytes() == original
+    assert source.read_bytes() == replacement
+
+
+def test_directory_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="regular"):
+        identify_file(tmp_path)
+
+
+def test_symlink_to_regular_file_is_rejected(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("do not follow", encoding="utf-8")
+    link = tmp_path / "link.txt"
+
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"file symlinks are unavailable: {exc}")
+
+    with pytest.raises(ValueError, match="symlink"):
+        identify_file(link)
