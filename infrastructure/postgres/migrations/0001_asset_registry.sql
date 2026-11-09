@@ -174,6 +174,9 @@ BEGIN
     IF target_status NOT IN ('pending', 'running') THEN
         RAISE EXCEPTION 'observations for terminal scan % are immutable', target_scan_id;
     END IF;
+    IF TG_OP = 'UPDATE' AND OLD.scan_run_id <> NEW.scan_run_id THEN
+        RAISE EXCEPTION 'an observation cannot be moved between scan runs';
+    END IF;
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
     END IF;
@@ -184,6 +187,30 @@ $$;
 CREATE TRIGGER scan_observations_open_run_only
     BEFORE INSERT OR UPDATE OR DELETE ON scan_observations
     FOR EACH ROW EXECUTE FUNCTION prevent_closed_scan_observation_mutation();
+
+CREATE FUNCTION prevent_scan_run_reopen()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+    IF OLD.status IN ('complete', 'partial', 'failed', 'cancelled')
+       AND NEW.status IS DISTINCT FROM OLD.status THEN
+        RAISE EXCEPTION 'terminal scan runs cannot change status';
+    END IF;
+    IF OLD.status = 'pending' AND NEW.status NOT IN ('pending', 'running', 'failed', 'cancelled') THEN
+        RAISE EXCEPTION 'invalid scan status transition: % -> %', OLD.status, NEW.status;
+    END IF;
+    IF OLD.status = 'running'
+       AND NEW.status NOT IN ('running', 'complete', 'partial', 'failed', 'cancelled') THEN
+        RAISE EXCEPTION 'invalid scan status transition: % -> %', OLD.status, NEW.status;
+    END IF;
+    RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER scan_runs_valid_transitions
+    BEFORE UPDATE OF status ON scan_runs
+    FOR EACH ROW EXECUTE FUNCTION prevent_scan_run_reopen();
 
 -- The only built-in operation that marks unseen locations missing.
 -- It refuses partial, failed, cancelled, pending, or running scans.
@@ -228,7 +255,6 @@ BEGIN
                last_seen_at = v_finished_at
           FROM observed_files AS o
          WHERE l.id = o.location_id
-           AND l.availability IS DISTINCT FROM o.new_availability
         RETURNING l.id, o.old_availability, l.availability AS new_availability
     ),
     missing_candidates AS (
@@ -254,9 +280,12 @@ BEGIN
         RETURNING l.id, m.old_availability, l.availability AS new_availability
     ),
     state_changes AS (
-        SELECT id, old_availability, new_availability FROM refreshed
+        SELECT id, old_availability, new_availability
+          FROM refreshed
+         WHERE old_availability IS DISTINCT FROM new_availability
         UNION ALL
-        SELECT id, old_availability, new_availability FROM marked_missing
+        SELECT id, old_availability, new_availability
+          FROM marked_missing
     )
     INSERT INTO asset_location_events (
         id,
