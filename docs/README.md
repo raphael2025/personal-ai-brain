@@ -28,3 +28,5 @@
 ## Architecture decisions
 - [ADR 0001 — local-first and source-of-truth boundaries](adr/0001-local-first-and-source-of-truth.md)
 - [ADR 0002 — modular monolith and workers](adr/0002-modular-monolith-and-workers.md)
+- [ADR 0003 — PAB owns asset identity and provenance](adr/0003-pab-owns-asset-identity-and-provenance.md)
+- [ADR 0004 — lexical baseline before vector or graph](adr/0004-lexical-baseline-before-vector-or-graph.md)

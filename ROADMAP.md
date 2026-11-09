@@ -9,7 +9,7 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] Initial local-first architecture and threat-model direction
 - [x] System Blueprint v1: domains, data flow, state machines, API, deployment, security invariants
 - [x] Module contracts, data lifecycle, context/egress policy, implementation map
-- [ ] ADR review of the v1 system blueprint
+- [x] ADR review of the v1 system blueprint and canonical registry/retrieval boundaries
 - [x] Registry domain, PostgreSQL persistence, and initial scan service validated end-to-end
 - [ ] Cross-platform scanner guarantees and hostile-filesystem validation
 - [ ] Synthetic evaluation corpus and baseline query set
