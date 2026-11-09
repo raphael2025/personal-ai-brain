@@ -89,3 +89,44 @@ def test_scan_directory_rejects_symlink_as_root(tmp_path: Path) -> None:
     assert result.status is ScanStatus.FAILED
     assert result.observations == ()
     assert result.issues[0].operation == "open_root"
+
+
+
+def test_scan_directory_does_not_follow_directory_replaced_by_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    from personal_ai_brain.assets import scanner as scanner_module
+
+    root = tmp_path / "root"
+    child = root / "child"
+    outside = tmp_path / "outside"
+    child.mkdir(parents=True)
+    outside.mkdir()
+    (outside / "secret.txt").write_text("outside", encoding="utf-8")
+    moved = root / "child-original"
+
+    real_open = os.open
+    swapped = False
+
+    def replace_with_symlink_before_open(path, flags, *args, **kwargs):
+        nonlocal swapped
+        if path == "child" and kwargs.get("dir_fd") is not None and not swapped:
+            swapped = True
+            child.rename(moved)
+            child.symlink_to(outside, target_is_directory=True)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(scanner_module, "_secure_traversal_supported", lambda: True)
+    monkeypatch.setattr(scanner_module.os, "open", replace_with_symlink_before_open)
+
+    result = scan_directory(root)
+
+    assert swapped is True
+    assert result.status is ScanStatus.PARTIAL
+    assert "child/secret.txt" not in {item.relative_path for item in result.observations}
+    assert any(
+        issue.relative_path == "child" and issue.operation == "open_directory"
+        for issue in result.issues
+    )

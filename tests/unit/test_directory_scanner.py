@@ -77,21 +77,21 @@ def test_unreadable_subdirectory_makes_scan_partial(
     root = tmp_path / "root"
     restricted = root / "restricted"
     restricted.mkdir(parents=True)
-    real_scandir = scanner.os.scandir
+    real_open = scanner.os.open
 
-    def guarded_scandir(path: str | Path):
-        if Path(path) == restricted:
+    def guarded_open(path, flags, *args, **kwargs):
+        if path == "restricted" and kwargs.get("dir_fd") is not None:
             raise PermissionError("synthetic permission failure")
-        return real_scandir(path)
+        return real_open(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(scanner.os, "scandir", guarded_scandir)
+    monkeypatch.setattr(scanner, "_secure_traversal_supported", lambda: True)
+    monkeypatch.setattr(scanner.os, "open", guarded_open)
 
     result = scan_directory(root)
 
     assert result.status is ScanStatus.PARTIAL
     assert result.issues[0].relative_path == "restricted"
-    assert result.issues[0].operation == "read_directory"
-
+    assert result.issues[0].operation == "open_directory"
 
 def test_symlink_root_is_rejected(tmp_path: Path) -> None:
     target = tmp_path / "target"
