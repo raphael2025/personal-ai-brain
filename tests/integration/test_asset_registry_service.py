@@ -17,8 +17,18 @@ psycopg = pytest.importorskip("psycopg")
 from psycopg import sql  # noqa: E402
 
 from personal_ai_brain.assets.models import StorageKind, StorageRoot  # noqa: E402
-from personal_ai_brain.assets.repository import PostgresAssetRegistryRepository  # noqa: E402
-from personal_ai_brain.assets.scanner import ScanIssue, ScanResult, ScanStatus  # noqa: E402
+from personal_ai_brain.assets.repository import (  # noqa: E402
+    IdempotencyConflict,
+    PostgresAssetRegistryRepository,
+    PreparedObservation,
+)
+from personal_ai_brain.assets.scanner import (  # noqa: E402
+    EntryKind,
+    ScanIssue,
+    ScanObservation,
+    ScanResult,
+    ScanStatus,
+)
 from personal_ai_brain.assets.service import AssetRegistryService  # noqa: E402
 
 MIGRATION = (
@@ -171,6 +181,18 @@ def test_complete_empty_scan_marks_previous_location_missing(
         "SELECT availability FROM asset_locations"
     ).fetchone()[0]
     assert availability == "missing"
+    repeated = repository.finish_scan(empty.scan_id, [], status=ScanStatus.COMPLETE)
+    assert repeated == 1
+
+    conflicting = PreparedObservation(
+        ScanObservation("new.txt", EntryKind.FILE, 1, 1),
+        sha256="b" * 64,
+        size_bytes=1,
+    )
+    with pytest.raises(IdempotencyConflict):
+        repository.finish_scan(
+            empty.scan_id, [conflicting], status=ScanStatus.COMPLETE
+        )
 
 
 def test_network_root_requires_explicit_local_mount_path(db, tmp_path: Path) -> None:
