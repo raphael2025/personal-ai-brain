@@ -39,7 +39,7 @@ The service:
 1. Creates a RUNNING scan record.
 2. Runs read-only directory discovery.
 3. Hashes discovered regular files with SHA-256.
-4. Stores scan observations, logical asset IDs, immutable content versions, and locations in one transaction.
+4. Stores scan observations, logical asset IDs, immutable content versions, and locations in one transaction; replaying an identical finalization is idempotent, while a conflicting replay is rejected.
 5. Marks the scan COMPLETE, PARTIAL, or FAILED.
 6. Calls database reconciliation only for COMPLETE scans.
 
