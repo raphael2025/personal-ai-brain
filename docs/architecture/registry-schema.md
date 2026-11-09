@@ -6,6 +6,7 @@
 
 - A path is a location, never an asset identity.
 - Asset IDs are random UUIDs assigned by the registry.
+- A storage root is unique by its exact `(kind, uri)` pair; aliases that resolve to the same physical location but use different URIs require an explicit operator decision.
 - An asset may have immutable content versions. A version is unique within its asset by SHA-256 plus byte size.
 - Identical content across different assets is indexed as a duplicate candidate, not automatically merged. This avoids merging files across trust boundaries or unrelated user intent.
 - A future explicit deduplication workflow may link assets, but must preserve original IDs and locations.
