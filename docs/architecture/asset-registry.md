@@ -58,3 +58,12 @@ The scanner is not a hardened sandbox against an adversary concurrently replacin
 - How should case sensitivity and Unicode normalization be represented across filesystems?
 - What policy should govern encrypted archives and symlinks?
 - When should duplicate content be represented as one asset with multiple locations versus separate logical assets?
+
+
+## Storage-root URI contract
+
+- Local and removable roots use absolute `file://` URIs.
+- Network roots use `smb://host/share` or `nfs://host/export`.
+- Credentials, query strings, and fragments are rejected in storage URIs; credentials belong in a separate secret store.
+- Remote `file://host/share` authorities are rejected to avoid confusing local paths with network shares.
+- Relative asset paths are stored with POSIX separators and reject absolute paths, NUL, empty segments, `.`, and `..`.
