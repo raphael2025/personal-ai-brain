@@ -226,3 +226,19 @@ def test_identify_file_at_rejects_stale_discovery_metadata(tmp_path: Path) -> No
 
     with pytest.raises(FileChangedDuringReadError, match="size changed"):
         identify_file_at(root, "notes.md", expected_size=1)
+
+
+
+def test_identify_file_at_rejects_fifo_without_blocking(tmp_path: Path) -> None:
+    import os
+
+    from personal_ai_brain.assets.identity import identify_file_at
+
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("named pipes are unavailable on this platform")
+    root = tmp_path / "root"
+    root.mkdir()
+    os.mkfifo(root / "pipe")
+
+    with pytest.raises(ValueError, match="regular file"):
+        identify_file_at(root, "pipe")
