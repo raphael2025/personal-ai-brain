@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 
 class StorageKind(StrEnum):
@@ -43,6 +43,9 @@ def _validate_storage_uri(uri: str, kind: StorageKind) -> str:
         raise ValueError("uri scheme must be file, smb, or nfs")
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("credentials must not be embedded in storage URIs")
+    decoded_path = unquote(parsed.path)
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in decoded_path):
+        raise ValueError("URI path must not contain encoded ASCII control characters")
     if parsed.query or parsed.fragment:
         raise ValueError("storage URI must not contain a query or fragment")
 
@@ -81,6 +84,8 @@ class StorageRoot:
             raise ValueError("root_id must be a non-empty string")
         if not isinstance(self.display_name, str) or not self.display_name.strip():
             raise ValueError("display_name must be a non-empty string")
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in self.display_name):
+            raise ValueError("display_name must not contain ASCII control characters")
         if not isinstance(self.kind, StorageKind):
             raise ValueError("kind must be a StorageKind")
         if type(self.enabled) is not bool:

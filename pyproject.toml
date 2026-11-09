@@ -14,7 +14,11 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0,<10", "ruff>=0.9,<1"]
+postgres = ["psycopg[binary]>=3.2,<4"]
 postgres-test = ["psycopg[binary]>=3.2,<4"]
+
+[project.scripts]
+pab = "personal_ai_brain.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/personal_ai_brain"]

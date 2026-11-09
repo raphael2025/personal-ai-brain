@@ -16,6 +16,9 @@
 - [Worker contract](architecture/worker-contract.md)
 - [Initial threat model](architecture/threat-model.md)
 
+## Development
+- [Asset Registry service and CLI](development/registry-service.md)
+
 ## Research and operations
 - [Technology evaluation — OpenViking, MemOS, Cognee, and hybrid baseline](research/technology-evaluation-2026-11.md)
 - [Evaluation plan](research/evaluation-plan.md)
