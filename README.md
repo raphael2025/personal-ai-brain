@@ -77,7 +77,7 @@ The initial design is a modular monolith with independently runnable workers:
 The initial developer CLI is available. It requires PostgreSQL and a manually applied migration:
 
     python -m pip install -e ".[postgres,dev]"
-    export PAB_DATABASE_URL='postgresql://...'
+    read -rsp "PAB_DATABASE_URL: " PAB_DATABASE_URL; echo; export PAB_DATABASE_URL
     psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/postgres/migrations/0001_asset_registry.sql
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
