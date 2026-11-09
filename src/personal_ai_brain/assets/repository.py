@@ -247,7 +247,7 @@ class PostgresAssetRegistryRepository:
                 if observation.kind is EntryKind.FILE and prepared.sha256 is not None:
                     existing_location = connection.execute(
                         """
-                        SELECT id, asset_id, current_version_id
+                        SELECT id, asset_id, current_version_id, relative_path
                           FROM asset_locations
                          WHERE storage_root_id = %s
                            AND normalized_path_key = %s
@@ -264,7 +264,7 @@ class PostgresAssetRegistryRepository:
                             "INSERT INTO assets (id) VALUES (%s)", (asset_id,)
                         )
                     else:
-                        location_id, asset_id, _current_version_id = existing_location
+                        location_id, asset_id, _current_version_id, _current_relative_path = existing_location
 
                     version = connection.execute(
                         """
@@ -307,10 +307,10 @@ class PostgresAssetRegistryRepository:
                             ),
                         )
                     else:
-                        location_id, asset_id, current_version_id = existing_location
+                        location_id, asset_id, current_version_id, current_relative_path = existing_location
                         if (
                             current_version_id != version_id
-                            or observation.relative_path != existing_location[0]
+                            or observation.relative_path != current_relative_path
                         ):
                             connection.execute(
                                 """
