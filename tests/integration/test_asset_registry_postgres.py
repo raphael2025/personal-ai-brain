@@ -82,12 +82,12 @@ def seed_location(db, *, path: str = "docs/readme.md") -> dict[str, object]:
 
 def create_scan(db, root_id, *, status: str = "complete"):
     scan_id = uuid4()
-    finished = "now()" if status in {
-        "complete",
-        "partial",
-        "failed",
-        "cancelled",
-    } else "NULL"
+    stored_status = "running" if status == "complete" else status
+    finished = (
+        "NULL"
+        if stored_status in {"pending", "running"}
+        else "now()"
+    )
     db.execute(
         f"""
         INSERT INTO scan_runs (
@@ -95,9 +95,27 @@ def create_scan(db, root_id, *, status: str = "complete"):
         )
         VALUES (%s, %s, %s, 'integration-test', {finished})
         """,
-        (scan_id, root_id, status),
+        (scan_id, root_id, stored_status),
     )
     return scan_id
+
+
+def finish_scan(db, scan_id, *, status: str = "complete") -> None:
+    db.execute(
+        """
+        UPDATE scan_runs
+           SET status = %s, finished_at = now()
+         WHERE id = %s AND status = 'running'
+        """,
+        (status, scan_id),
+    )
+
+
+def reconcile_complete_scan(db, scan_id):
+    finish_scan(db, scan_id)
+    return db.execute(
+        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+    ).fetchone()[0]
 
 
 def add_observation(db, scan_id, path: str, *, excluded: bool = False):
@@ -117,9 +135,7 @@ def test_complete_scan_marks_unobserved_location_missing_and_logs_event(db) -> N
     seeded = seed_location(db)
     scan_id = create_scan(db, seeded["root_id"])
 
-    changed = db.execute(
-        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
-    ).fetchone()[0]
+    changed = reconcile_complete_scan(db, scan_id)
     state = db.execute(
         "SELECT availability FROM asset_locations WHERE id = %s",
         (seeded["location_id"],),
@@ -141,7 +157,7 @@ def test_incomplete_scan_cannot_mark_location_missing(db, status: str) -> None:
 
     with pytest.raises(psycopg.Error):
         with db.transaction():
-            db.execute("SELECT reconcile_missing_asset_locations(%s)", (scan_id,))
+            reconcile_complete_scan(db, scan_id)
 
     state = db.execute(
         "SELECT availability FROM asset_locations WHERE id = %s",
@@ -181,6 +197,8 @@ def test_observations_are_immutable_after_scan_completion(db) -> None:
     seeded = seed_location(db)
     scan_id = create_scan(db, seeded["root_id"])
 
+    finish_scan(db, scan_id)
+
     with pytest.raises(psycopg.errors.RaiseException):
         with db.transaction():
             add_observation(db, scan_id, "late.txt")
@@ -189,6 +207,8 @@ def test_observations_are_immutable_after_scan_completion(db) -> None:
 def test_terminal_scan_cannot_be_reopened(db) -> None:
     seeded = seed_location(db)
     scan_id = create_scan(db, seeded["root_id"])
+
+    finish_scan(db, scan_id)
 
     with pytest.raises(psycopg.errors.RaiseException):
         with db.transaction():
@@ -267,12 +287,8 @@ def test_reconciliation_is_idempotent(db) -> None:
     seeded = seed_location(db)
     scan_id = create_scan(db, seeded["root_id"])
 
-    first = db.execute(
-        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
-    ).fetchone()[0]
-    second = db.execute(
-        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
-    ).fetchone()[0]
+    first = reconcile_complete_scan(db, scan_id)
+    second = reconcile_complete_scan(db, scan_id)
     event_count = db.execute(
         "SELECT count(*) FROM asset_location_events WHERE scan_run_id = %s",
         (scan_id,),
