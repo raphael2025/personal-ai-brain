@@ -8,8 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from personal_ai_brain.assets.identity import identify_file
-from personal_ai_brain.assets.models import StorageKind
+from personal_ai_brain.assets.identity import FileChangedDuringReadError, identify_file
 from personal_ai_brain.assets.repository import (
     AssetRegistryRepository,
     PreparedObservation,
@@ -32,7 +31,10 @@ class ScanExecution:
 
 def _local_path(root: StorageRootRecord, override: Path | None) -> Path:
     if override is not None:
-        return Path(override).expanduser()
+        resolved = Path(override).expanduser()
+        if not resolved.is_absolute():
+            raise ValueError("mounted path override must be absolute")
+        return resolved
     parsed = urlsplit(root.root.uri)
     if parsed.scheme != "file":
         raise ValueError(
@@ -77,7 +79,16 @@ class AssetRegistryService:
                     prepared.append(PreparedObservation(observation))
                     continue
                 try:
-                    identity = identify_file(path / observation.relative_path)
+                    file_path = path / observation.relative_path
+                    identity = identify_file(file_path)
+                    after_hash = file_path.stat()
+                    if (
+                        identity.size_bytes != observation.size_bytes
+                        or after_hash.st_mtime_ns != observation.modified_time_ns
+                    ):
+                        raise FileChangedDuringReadError(
+                            "source changed after directory discovery"
+                        )
                 except (OSError, RuntimeError, ValueError) as exc:
                     issues.append(
                         ScanIssue(
