@@ -71,7 +71,9 @@ def test_empty_directory_is_a_complete_empty_scan(tmp_path: Path) -> None:
     assert result.issues == ()
 
 
-def test_unreadable_subdirectory_makes_scan_partial(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unreadable_subdirectory_makes_scan_partial(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     root = tmp_path / "root"
     restricted = root / "restricted"
     restricted.mkdir(parents=True)
