@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from personal_ai_brain.assets import scanner
 from personal_ai_brain.assets.scanner import EntryKind, ScanStatus, scan_directory
 
 
@@ -68,3 +69,38 @@ def test_empty_directory_is_a_complete_empty_scan(tmp_path: Path) -> None:
     assert result.status is ScanStatus.COMPLETE
     assert result.observations == ()
     assert result.issues == ()
+
+
+def test_unreadable_subdirectory_makes_scan_partial(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = tmp_path / "root"
+    restricted = root / "restricted"
+    restricted.mkdir(parents=True)
+    real_scandir = scanner.os.scandir
+
+    def guarded_scandir(path: str | Path):
+        if Path(path) == restricted:
+            raise PermissionError("synthetic permission failure")
+        return real_scandir(path)
+
+    monkeypatch.setattr(scanner.os, "scandir", guarded_scandir)
+
+    result = scan_directory(root)
+
+    assert result.status is ScanStatus.PARTIAL
+    assert result.issues[0].relative_path == "restricted"
+    assert result.issues[0].operation == "read_directory"
+
+
+def test_symlink_root_is_rejected(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    link = tmp_path / "root-link"
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"symlinks unavailable on this platform: {exc}")
+
+    result = scan_directory(link)
+
+    assert result.status is ScanStatus.FAILED
+    assert result.observations == ()
