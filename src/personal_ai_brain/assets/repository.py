@@ -237,6 +237,7 @@ class PostgresAssetRegistryRepository:
                 SELECT storage_root_id, path_normalizer_version, status, error_summary
                   FROM scan_runs
                  WHERE id = %s
+                 FOR UPDATE
                 """,
                 (scan_uuid,),
             ).fetchone()
