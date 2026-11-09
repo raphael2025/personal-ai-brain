@@ -1,6 +1,6 @@
 # Asset Registry Service and CLI
 
-**Status:** initial application service implementation in PR review. PostgreSQL schema is merged; service behavior is not production-certified until this PR and its CI are merged.
+**Status:** initial application service and CLI are merged in PR #34. PostgreSQL 16 integration tests, Python 3.11–3.13 CI, CodeQL, and Secret Scanning passed. This remains a pre-alpha developer preview, not production-certified.
 
 ## Install
 
