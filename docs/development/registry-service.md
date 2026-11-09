@@ -10,7 +10,7 @@ Install the package with its PostgreSQL extra:
 
 Set the connection string in the environment. Do not commit it or put it in shell history:
 
-    export PAB_DATABASE_URL='postgresql://...'
+    read -rsp "PAB_DATABASE_URL: " PAB_DATABASE_URL; echo; export PAB_DATABASE_URL
 
 Apply the migration once to the target database:
 
