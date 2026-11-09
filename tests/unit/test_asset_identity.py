@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -114,3 +115,51 @@ def test_symlink_to_regular_file_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="symlink"):
         identify_file(link)
+
+
+
+def test_permission_error_from_open_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from personal_ai_brain.assets import identity as identity_module
+
+    source = tmp_path / "restricted.txt"
+    source.write_text("private", encoding="utf-8")
+    real_open = os.open
+
+    def deny_source_open(path, flags, *args, **kwargs):
+        if Path(path) == source:
+            raise PermissionError("synthetic permission denial")
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(identity_module.os, "open", deny_source_open)
+
+    with pytest.raises(PermissionError, match="synthetic"):
+        identify_file(source)
+
+
+def test_in_place_mutation_during_hash_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from personal_ai_brain.assets import identity as identity_module
+    from personal_ai_brain.assets.identity import FileChangedDuringReadError
+
+    source = tmp_path / "mutating.bin"
+    source.write_bytes(b"original payload")
+    real_fstat = os.fstat
+    calls = 0
+
+    def mutate_before_final_stat(file_descriptor: int):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            source.write_bytes(b"changed payload with another size")
+        return real_fstat(file_descriptor)
+
+    monkeypatch.setattr(identity_module.os, "fstat", mutate_before_final_stat)
+
+    with pytest.raises(FileChangedDuringReadError):
+        identify_file(source)
+
+    assert calls == 2
+    assert source.read_bytes() == b"changed payload with another size"
