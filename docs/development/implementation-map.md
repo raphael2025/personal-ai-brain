@@ -2,13 +2,13 @@
 
 This is the execution map for turning the architecture into a working product. Implement each work package as focused PRs with tests. Dependencies are deliberate; do not build UI on unstable contracts.
 
-## A — Asset Registry (P0) — [Issue #32](https://github.com/raphael2025/personal-ai-brain/issues/32) (services/CLI), [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10) (schema merged), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1) (domain models merged)
+## A — Asset Registry (P0) — [Issue #32](https://github.com/raphael2025/personal-ai-brain/issues/32) (remaining CLI/migration hardening; initial repository/service/root-scan path merged in PR #34), [Issue #10](https://github.com/raphael2025/personal-ai-brain/issues/10) (schema merged), [Issue #1](https://github.com/raphael2025/personal-ai-brain/issues/1) (domain models merged)
 
 Goal: know which assets exist, where they are, and which versions were observed.
 
-Deliver: finish/validate PostgreSQL migrations; repository/service layer for roots/assets/versions/locations/scans; transactional scan completion and reconciliation; offline/partial semantics; rename/duplicate candidate workflow; CLI for root enrollment, scan, list, inspect; migration/rollback tests.
+Merged foundation: PostgreSQL schema; repository/service for root enrollment, file identity/version/location persistence, scan observations, and COMPLETE-only reconciliation; root add/list and scan CLI; descriptor-relative hashing. Remaining: scan status, asset list/inspect, dry-run reconciliation, explicit normalizer migration, crash recovery, rename/duplicate candidate workflow, and migration/rollback tooling.
 
-Acceptance: repeated scan idempotent; partial/failed/offline scans never mark missing; identical bytes at different paths remain separate pending resolution; sources never modified; 100k synthetic-entry benchmark reports hardware/time/memory.
+Acceptance: identical finalization replay is idempotent and conflicting replay is rejected; partial/failed scans never mark missing; identical bytes at different paths remain separate pending resolution; sources never modified. A 100k synthetic-entry benchmark and explicit normalizer migration remain outstanding.
 
 ## B — Durable Jobs and Workers (P0) — [Issue #21](https://github.com/raphael2025/personal-ai-brain/issues/21)
 
