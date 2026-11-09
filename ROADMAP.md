@@ -1,55 +1,55 @@
 # Roadmap
 
-This roadmap is a planning document, not a claim that these capabilities already exist. Milestones move to **Done** only after code, tests, and acceptance evidence are merged.
+This roadmap is a delivery sequence, not a claim that planned capabilities exist. A milestone moves to Done only after code, tests, security review, and acceptance evidence are merged.
 
-## Phase 0 — Foundations
+The detailed execution plan is [Implementation Map](docs/development/implementation-map.md); the target system is [System Blueprint v1](docs/architecture/system-blueprint.md).
 
-- [ ] Repository governance, architecture boundaries, and threat model
-- [ ] Asset identity and storage-location data model
-- [ ] Incremental discovery with safe handling of unavailable volumes
-- [ ] Processing-job model with idempotency, retries, and checkpoints
-- [ ] Baseline evaluation corpus and query set
-- [ ] Compare OpenViking, MemOS, Cognee, and a conventional hybrid-RAG baseline
-- [ ] Local development environment and CI
+## Phase 0 — Architecture and foundations
+- [x] Repository governance, CI, security scanning, contribution templates
+- [x] Initial local-first architecture and threat-model direction
+- [x] System Blueprint v1: domains, data flow, state machines, API, deployment, security invariants
+- [x] Module contracts, data lifecycle, context/egress policy, implementation map
+- [ ] ADR review of the v1 system blueprint
+- [ ] Registry domain and persistence implementation validated end-to-end
+- [ ] Safe scan reconciliation and platform support contract
+- [ ] Synthetic evaluation corpus and baseline query set
+- [ ] Technology comparison: OpenViking, MemOS, Cognee, conventional hybrid retrieval
 
-## Phase 1 — Asset Registry
+## Phase 1 — Asset Registry and durable processing (P0)
+- [ ] Root enrollment and storage-root policy
+- [ ] Persistent assets, versions, locations, scan runs, observations
+- [ ] Transactional COMPLETE-only reconciliation
+- [ ] Rename/duplicate candidate resolution without destructive auto-merge
+- [ ] Durable job/attempt/lease model with fencing and retries
+- [ ] CLI for root, scan, asset, and worker operations
 
-- [ ] Register files and storage roots without modifying originals
-- [ ] Stable identity using path-independent fingerprints where feasible
-- [ ] Track file versions, locations, and availability
-- [ ] Incremental scan and reconciliation
-- [ ] Permission and exclusion rules
+## Phase 2 — Extraction, provenance, and search (P1)
+- [ ] Text/Markdown, PDF, DOCX, HTML, and code extractors
+- [ ] Versioned artifacts and rebuild manifests
+- [ ] Sandboxed extraction with resource limits
+- [ ] Lexical BM25 retrieval baseline
+- [ ] Labelled evaluation and retrieval regression tests
+- [ ] Optional vector channel and measured hybrid ranking
+- [ ] Evidence spans and citations
 
-## Phase 2 — Ingestion and Retrieval
-
-- [ ] Text and metadata extraction
-- [ ] Document and code parsing
-- [ ] OCR and media metadata
-- [ ] Lexical + semantic retrieval baseline
-- [ ] Evidence spans and source citations
-- [ ] Retrieval evaluation and regression tests
-
-## Phase 3 — Memory and Context
-
+## Phase 3 — Knowledge, memory, and context (P2)
 - [ ] L0/L1/L2 progressive content model
-- [ ] Memory lifecycle and activation policy
-- [ ] Context planning and token budgeting
-- [ ] Conflict detection, freshness, and provenance
-- [ ] Read-only API and MCP interface
+- [ ] Explicit memory origins and lifecycle
+- [ ] Entity/claim/evidence graph and conflict handling
+- [ ] Freshness and activation policy (separate from content depth)
+- [ ] Principal/scope/classification model
+- [ ] Deny-by-default policy engine and append-only audit
+- [ ] ContextBundle assembly, token budget, citations, omissions
+- [ ] External model egress grants and revocation
 
-## Phase 4 — Multi-node and integrations
-
-- [ ] Pull-based worker execution and recovery
-- [ ] Local model gateway
-- [ ] Optional external model gateway with explicit policy
-- [ ] AI client connectors
-- [ ] Backup, restore, monitoring, and security review
+## Phase 4 — API, clients, and operations (P3)
+- [ ] Versioned local HTTP API and OpenAPI contract
+- [ ] CLI and local UI
+- [ ] Read-only MCP adapter, then explicitly confirmed mutating tools
+- [ ] Pull-based multi-node workers and recovery
+- [ ] Backup/restore, metrics, health, redacted logs
+- [ ] Security review and reproducible deployment guide
 
 ## Release gates
 
-A phase is not considered complete until:
-- acceptance criteria are documented;
-- tests run in CI;
-- failure and recovery paths are exercised;
-- security and privacy implications are reviewed;
-- setup and migration instructions are reproducible.
+A phase is not complete until acceptance criteria are documented, CI passes, failure/recovery paths are exercised, security/privacy implications are reviewed, migrations are reproducible, and project status is updated. Performance and retrieval-quality claims require benchmark evidence with hardware, dataset, versions, and configuration.
