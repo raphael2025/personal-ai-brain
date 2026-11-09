@@ -62,6 +62,10 @@ class PathNormalizerMigrationRequired(RuntimeError):
     """Active location keys need explicit migration before scanning can reconcile."""
 
 
+class IdempotencyConflict(RuntimeError):
+    """A repeated scan finalization differs from the already committed result."""
+
+
 class PostgresAssetRegistryRepository:
     """Transactional PostgreSQL implementation of the registry repository."""
 
@@ -230,15 +234,59 @@ class PostgresAssetRegistryRepository:
         with self._connection() as connection:
             scan = connection.execute(
                 """
-                SELECT storage_root_id, path_normalizer_version
+                SELECT storage_root_id, path_normalizer_version, status, error_summary
                   FROM scan_runs
-                 WHERE id = %s AND status = 'running'
-                """,
+                 WHERE id = %s
+                """
                 (scan_uuid,),
             ).fetchone()
             if scan is None:
-                raise RegistryNotFoundError(f"running scan not found: {scan_id}")
-            root_id, normalizer_version = scan
+                raise RegistryNotFoundError(f"scan not found: {scan_id}")
+            root_id, normalizer_version, stored_status, stored_error = scan
+
+            if stored_status != "running":
+                expected = sorted(
+                    (
+                        item.observation.relative_path,
+                        self._normalized_key(item.observation.relative_path, normalizer_version),
+                        normalizer_version,
+                        item.observation.kind.value,
+                        item.observation.size_bytes,
+                        item.observation.modified_time_ns,
+                        item.sha256,
+                        item.size_bytes,
+                    )
+                    for item in observations
+                )
+                existing = connection.execute(
+                    """
+                    SELECT o.relative_path, o.normalized_path_key,
+                           o.path_normalizer_version, o.entry_kind,
+                           o.size_bytes, o.modified_time_ns, v.sha256, v.size_bytes
+                      FROM scan_observations AS o
+                      LEFT JOIN asset_versions AS v ON v.id = o.asset_version_id
+                     WHERE o.scan_run_id = %s
+                     ORDER BY o.relative_path
+                    """
+                    (scan_uuid,),
+                ).fetchall()
+                if stored_status != status.value or stored_error != error_summary or existing != expected:
+                    raise IdempotencyConflict(
+                        "scan finalization was already committed with different data"
+                    )
+                if status is ScanStatus.COMPLETE:
+                    return int(
+                        connection.execute(
+                            """
+                            SELECT count(*)
+                              FROM asset_location_events
+                             WHERE scan_run_id = %s
+                               AND event_type = 'availability_changed'
+                            """
+                            (scan_uuid,),
+                        ).fetchone()[0]
+                    )
+                return 0
 
             for prepared in observations:
                 observation = prepared.observation
