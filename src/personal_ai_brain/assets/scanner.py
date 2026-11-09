@@ -76,7 +76,9 @@ def scan_directory(root: Path) -> ScanResult:
             raise NotADirectoryError("scan root must be a real directory, not a symlink")
         pending = [root]
     except OSError as exc:
-        issues.append(ScanIssue(relative_path=".", operation="open_root", error_type=type(exc).__name__))
+        issues.append(
+            ScanIssue(relative_path=".", operation="open_root", error_type=type(exc).__name__)
+        )
         return ScanResult(
             root=root,
             status=ScanStatus.FAILED,
