@@ -116,3 +116,15 @@ def test_asset_location_rejects_non_enum_availability() -> None:
 def test_asset_location_rejects_nul_character() -> None:
     with pytest.raises(ValueError, match="NUL"):
         AssetLocation("root-1", "docs/\x00readme.md")
+
+
+
+def test_localhost_file_uri_is_accepted() -> None:
+    root = StorageRoot(
+        "root-localhost",
+        "Local archive",
+        "file://localhost/srv/archive",
+        StorageKind.LOCAL,
+    )
+
+    assert root.uri == "file://localhost/srv/archive"
