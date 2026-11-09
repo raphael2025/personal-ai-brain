@@ -15,6 +15,7 @@ This page distinguishes implemented code from planned architecture. A roadmap ch
 | AssetLocation model | Implemented | In-memory validation only; normalization policy still needs cross-platform review |
 | CI | Implemented | Python 3.11–3.13 matrix; check latest run before relying on it |
 | CodeQL | Implemented | Automated scan, not a security audit |
+| Secret scanning | Gitleaks workflow implemented | Latest completed scan passed; continue monitoring future commits |
 | Dependabot | Implemented | PRs still require compatibility review and passing checks |
 | Contributor docs and templates | Implemented | Community process is still new |
 
