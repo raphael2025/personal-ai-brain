@@ -237,7 +237,7 @@ class PostgresAssetRegistryRepository:
                 SELECT storage_root_id, path_normalizer_version, status, error_summary
                   FROM scan_runs
                  WHERE id = %s
-                """
+                """,
                 (scan_uuid,),
             ).fetchone()
             if scan is None:
@@ -272,7 +272,7 @@ class PostgresAssetRegistryRepository:
                       LEFT JOIN asset_versions AS v ON v.id = o.asset_version_id
                      WHERE o.scan_run_id = %s
                      ORDER BY o.relative_path
-                    """
+                    """,
                     (scan_uuid,),
                 ).fetchall()
                 if (
@@ -291,7 +291,7 @@ class PostgresAssetRegistryRepository:
                               FROM asset_location_events
                              WHERE scan_run_id = %s
                                AND event_type = 'availability_changed'
-                            """
+                            """,
                             (scan_uuid,),
                         ).fetchone()[0]
                     )
