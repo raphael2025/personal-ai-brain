@@ -10,18 +10,19 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] System Blueprint v1: domains, data flow, state machines, API, deployment, security invariants
 - [x] Module contracts, data lifecycle, context/egress policy, implementation map
 - [ ] ADR review of the v1 system blueprint
-- [ ] Registry domain and persistence implementation validated end-to-end
-- [ ] Safe scan reconciliation and platform support contract
+- [x] Registry domain, PostgreSQL persistence, and initial scan service validated end-to-end
+- [ ] Cross-platform scanner guarantees and hostile-filesystem validation
 - [ ] Synthetic evaluation corpus and baseline query set
-- [ ] Technology comparison: OpenViking, MemOS, Cognee, conventional hybrid retrieval
+- [x] Desk research comparison: OpenViking, MemOS, Cognee, and hybrid retrieval baseline (benchmark still pending in Issue #5)
 
 ## Phase 1 — Asset Registry and durable processing (P0)
-- [ ] Root enrollment and storage-root policy
-- [ ] Persistent assets, versions, locations, scan runs, observations
-- [ ] Transactional COMPLETE-only reconciliation
+- [x] Root enrollment and initial storage-root policy
+- [x] Persistent assets, versions, locations, scan runs, observations
+- [x] Transactional COMPLETE-only reconciliation
 - [ ] Rename/duplicate candidate resolution without destructive auto-merge
 - [ ] Durable job/attempt/lease model with fencing and retries
-- [ ] CLI for root, scan, asset, and worker operations
+- [ ] Complete CLI: scan status, asset list/inspect, dry-run reconciliation, worker operations
+- [ ] Explicit path-normalizer migration
 
 ## Phase 2 — Extraction, provenance, and search (P1)
 - [ ] Text/Markdown, PDF, DOCX, HTML, and code extractors
@@ -44,7 +45,7 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 
 ## Phase 4 — API, clients, and operations (P3)
 - [ ] Versioned local HTTP API and OpenAPI contract
-- [ ] CLI and local UI
+- [ ] Local UI
 - [ ] Read-only MCP adapter, then explicitly confirmed mutating tools
 - [ ] Pull-based multi-node workers and recovery
 - [ ] Backup/restore, metrics, health, redacted logs
