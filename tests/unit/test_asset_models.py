@@ -169,3 +169,15 @@ def test_smb_root_requires_share_component(uri: str) -> None:
 def test_nfs_root_may_use_root_export() -> None:
     root = StorageRoot("root-nfs", "NFS", "nfs://nas.local/", StorageKind.NETWORK)
     assert root.uri == "nfs://nas.local/"
+
+
+
+@pytest.mark.parametrize("uri", ["file:///tmp/%00notes", "file:///tmp/%0Asecret"])
+def test_storage_root_rejects_encoded_control_characters(uri: str) -> None:
+    with pytest.raises(ValueError, match="encoded ASCII control"):
+        StorageRoot("root-encoded", "Archive", uri, StorageKind.LOCAL)
+
+
+def test_storage_root_rejects_control_characters_in_display_name() -> None:
+    with pytest.raises(ValueError, match="display_name"):
+        StorageRoot("root-name", "Archive\nInjected", "file:///tmp/archive", StorageKind.LOCAL)
