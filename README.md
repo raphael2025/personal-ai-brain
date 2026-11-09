@@ -81,7 +81,7 @@ Good starting points:
 - [Create a synthetic evaluation corpus](https://github.com/raphael2025/personal-ai-brain/issues/4)
 - [Review memory/retrieval technology choices](https://github.com/raphael2025/personal-ai-brain/issues/5)
 
-Please keep contributions evidence-based. Proposed integrations must not be described as working until tested. See [DEVELOPMENT.md](DEVELOPMENT.md) for contributor setup.
+Please keep contributions evidence-based. Proposed integrations must not be described as working until tested. See [DEVELOPMENT.md](DEVELOPMENT.md) for contributor setup and [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md) for the Chinese contribution guide.
 
 ## License
 
