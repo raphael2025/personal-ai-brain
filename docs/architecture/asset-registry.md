@@ -1,6 +1,6 @@
 # Asset Registry — Domain Design
 
-**Status:** proposed domain contract for Phase 1.
+**Status:** initial domain primitives implemented; persistence and reconciliation remain planned.
 
 ## Core concepts
 - **StorageRoot:** configured source such as a local directory, NAS share, or removable volume.
@@ -10,6 +10,15 @@
 - **ScanRun:** one discovery pass over a root, including start/end time and outcome.
 - **ScanObservation:** file or directory observed during a scan.
 - **ProcessingArtifact:** derived output tied to an asset version and processor/model version.
+
+## Implemented domain primitives
+
+- `StorageRoot`: logical source URI, kind, enabled flag, and explicit no-symlink policy.
+- `AssetLocation`: normalized root-relative path and explicit availability state.
+- `scan_directory`: read-only filesystem discovery with COMPLETE, PARTIAL, and FAILED outcomes.
+- `identify_file`: bounded-memory SHA-256 identity for a regular file.
+
+These are in-memory primitives only. There is not yet a persistent registry, database schema, or reconciliation engine.
 
 ## Identity rules
 - A path is a location, not an identity.
@@ -22,7 +31,9 @@
 ## Scan semantics
 A scan has explicit states: PENDING, RUNNING, COMPLETED, PARTIAL, FAILED, CANCELLED.
 
-The initial read-only scanner is implemented in `personal_ai_brain.assets.scanner`. It records relative paths and basic metadata, does not follow symlinks, and returns COMPLETE, PARTIAL, or FAILED. Only COMPLETE scans may be considered for absence reconciliation. PARTIAL and FAILED scans must never mark previously registered locations missing.
+The initial scanner records relative paths and basic metadata, does not intentionally follow symlinks, and returns COMPLETE, PARTIAL, or FAILED. Only COMPLETE scans may be considered for absence reconciliation. PARTIAL and FAILED scans must never mark previously registered locations missing.
+
+The scanner is not a hardened sandbox against an adversary concurrently replacing directory entries during traversal. Do not treat it as a security boundary for hostile, attacker-writable filesystems.
 
 ## Initial metadata
 - Asset ID
