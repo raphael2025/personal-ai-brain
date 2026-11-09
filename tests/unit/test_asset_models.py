@@ -62,3 +62,110 @@ def test_asset_location_keeps_availability_explicit() -> None:
         availability=LocationAvailability.UNAVAILABLE,
     )
     assert location.availability is LocationAvailability.UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "uri,kind",
+    [
+        ("file:relative/archive", StorageKind.LOCAL),
+        ("file://nas.local/share", StorageKind.LOCAL),
+        ("smb://nas.local", StorageKind.NETWORK),
+        ("nfs:///export", StorageKind.NETWORK),
+    ],
+)
+def test_storage_root_rejects_non_absolute_or_incomplete_uri(
+    uri: str, kind: StorageKind
+) -> None:
+    with pytest.raises(ValueError):
+        StorageRoot("root-1", "Archive", uri, kind)
+
+
+def test_storage_root_rejects_non_enum_kind() -> None:
+    with pytest.raises(ValueError, match="StorageKind"):
+        StorageRoot("root-1", "Archive", "file:///srv/archive", "local")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("enabled", 1),
+        ("follow_symlinks", 0),
+    ],
+)
+def test_storage_root_requires_boolean_flags(field: str, value: object) -> None:
+    values = {
+        "root_id": "root-1",
+        "display_name": "Archive",
+        "uri": "file:///srv/archive",
+        "kind": StorageKind.LOCAL,
+        "enabled": True,
+        "follow_symlinks": False,
+    }
+    values[field] = value
+
+    with pytest.raises(ValueError, match="boolean"):
+        StorageRoot(**values)  # type: ignore[arg-type]
+
+
+def test_asset_location_rejects_non_enum_availability() -> None:
+    with pytest.raises(ValueError, match="LocationAvailability"):
+        AssetLocation("root-1", "docs/readme.md", availability="available")  # type: ignore[arg-type]
+
+
+def test_asset_location_rejects_nul_character() -> None:
+    with pytest.raises(ValueError, match="NUL"):
+        AssetLocation("root-1", "docs/\x00readme.md")
+
+
+def test_localhost_file_uri_is_accepted() -> None:
+    root = StorageRoot(
+        "root-localhost",
+        "Local archive",
+        "file://localhost/srv/archive",
+        StorageKind.LOCAL,
+    )
+    assert root.uri == "file://localhost/srv/archive"
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "file:///srv/\narchive",
+        "file:///srv/\rarchive",
+        "file:///srv/\tarchive",
+        "file:///srv/\x7farchive",
+    ],
+)
+def test_storage_root_rejects_ascii_control_characters(uri: str) -> None:
+    with pytest.raises(ValueError, match="control"):
+        StorageRoot("root-control", "Archive", uri, StorageKind.LOCAL)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "smb://nas.local:bogus/share",
+        "smb://nas.local:65536/share",
+        "nfs://nas.local:99999/export",
+    ],
+)
+def test_network_storage_root_rejects_invalid_port(uri: str) -> None:
+    with pytest.raises(ValueError, match="malformed"):
+        StorageRoot("root-port", "NAS", uri, StorageKind.NETWORK)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "smb://nas.local/",
+        "smb://nas.local",
+    ],
+)
+def test_smb_root_requires_share_component(uri: str) -> None:
+    with pytest.raises(ValueError, match="share"):
+        StorageRoot("root-smb", "NAS", uri, StorageKind.NETWORK)
+
+
+def test_nfs_root_may_use_root_export() -> None:
+    root = StorageRoot("root-nfs", "NFS", "nfs://nas.local/", StorageKind.NETWORK)
+    assert root.uri == "nfs://nas.local/"
