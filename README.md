@@ -2,6 +2,8 @@
 
 **A local-first, privacy-preserving memory and context infrastructure for personal AI.**
 
+[![CI](https://github.com/raphael2025/personal-ai-brain/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/raphael2025/personal-ai-brain/actions/workflows/ci.yml) [![CodeQL](https://github.com/raphael2025/personal-ai-brain/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/raphael2025/personal-ai-brain/actions/workflows/codeql.yml)
+
 Personal AI Brain aims to make a person's digital knowledge usable across multiple AI assistants without uploading an entire archive or placing every memory into a model context window.
 
 The system is designed around four principles:
