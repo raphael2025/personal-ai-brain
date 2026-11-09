@@ -147,7 +147,7 @@ def test_incomplete_scan_cannot_mark_location_missing(db, status: str) -> None:
         "SELECT availability FROM asset_locations WHERE id = %s",
         (seeded["location_id"],),
     ).fetchone()[0]
-    assert state == "present"
+    assert state == "available"
 
 
 def test_complete_scan_refreshes_seen_and_excluded_locations(db) -> None:
@@ -260,3 +260,52 @@ def test_rename_keeps_asset_identity_and_marks_old_path_missing(db) -> None:
 
     assert old_state == "missing"
     assert new_asset_id == seeded["asset_id"]
+
+
+
+def test_reconciliation_is_idempotent(db) -> None:
+    seeded = seed_location(db)
+    scan_id = create_scan(db, seeded["root_id"])
+
+    first = db.execute(
+        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+    ).fetchone()[0]
+    second = db.execute(
+        "SELECT reconcile_missing_asset_locations(%s)", (scan_id,)
+    ).fetchone()[0]
+    event_count = db.execute(
+        "SELECT count(*) FROM asset_location_events WHERE scan_run_id = %s",
+        (scan_id,),
+    ).fetchone()[0]
+
+    assert first == 1
+    assert second == 0
+    assert event_count == 1
+
+
+def test_same_content_in_two_assets_is_not_automatically_merged(db) -> None:
+    first_asset_id = uuid4()
+    second_asset_id = uuid4()
+    db.execute("INSERT INTO assets (id) VALUES (%s)", (first_asset_id,))
+    db.execute("INSERT INTO assets (id) VALUES (%s)", (second_asset_id,))
+    db.execute(
+        """
+        INSERT INTO asset_versions (id, asset_id, sha256, size_bytes)
+        VALUES (%s, %s, %s, 10), (%s, %s, %s, 10)
+        """,
+        (
+            uuid4(),
+            first_asset_id,
+            "c" * 64,
+            uuid4(),
+            second_asset_id,
+            "c" * 64,
+        ),
+    )
+
+    count = db.execute(
+        "SELECT count(*) FROM asset_versions WHERE sha256 = %s AND size_bytes = 10",
+        ("c" * 64,),
+    ).fetchone()[0]
+
+    assert count == 2
