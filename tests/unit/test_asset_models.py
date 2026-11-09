@@ -41,7 +41,14 @@ def test_asset_location_normalizes_windows_separators() -> None:
 
 @pytest.mark.parametrize(
     "path",
-    ["", "/etc/passwd", "../secret.txt", "docs/../../secret.txt", "C:\\Users\\secret.txt", "docs//file.txt"],
+    [
+        "",
+        "/etc/passwd",
+        "../secret.txt",
+        "docs/../../secret.txt",
+        "C:\\Users\\secret.txt",
+        "docs//file.txt",
+    ],
 )
 def test_asset_location_rejects_absolute_or_traversal_paths(path: str) -> None:
     with pytest.raises(ValueError):
