@@ -308,7 +308,10 @@ class PostgresAssetRegistryRepository:
                         )
                     else:
                         location_id, asset_id, current_version_id = existing_location
-                        if current_version_id != version_id:
+                        if (
+                            current_version_id != version_id
+                            or observation.relative_path != existing_location[0]
+                        ):
                             connection.execute(
                                 """
                                 UPDATE asset_locations
@@ -317,6 +320,7 @@ class PostgresAssetRegistryRepository:
                                 """,
                                 (version_id, observation.relative_path, location_id),
                             )
+                        if current_version_id != version_id:
                             connection.execute(
                                 """
                                 INSERT INTO asset_location_events (
