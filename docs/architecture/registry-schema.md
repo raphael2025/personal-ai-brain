@@ -26,7 +26,7 @@
 
 ## Reconciliation contract
 
-The migration exposes `reconcile_missing_asset_locations(scan_run_id)`. It refuses every scan state except `complete`, requires a finish timestamp, and locks the scan row. It updates availability only for active locations under that scan's root and writes an event for each state transition.
+The migration exposes `reconcile_missing_asset_locations(scan_run_id)`. It refuses every scan state except `complete`, requires a finish timestamp, and locks the scan row. It updates availability (`available`, `missing`, `unavailable`, or `excluded`) only for active locations under that scan's root and writes an event for each state transition.
 
 Observations become immutable once the scan enters a terminal state. The caller must:
 1. create a scan run in `pending` or `running`;
