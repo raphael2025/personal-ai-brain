@@ -11,7 +11,8 @@ CREATE TABLE storage_roots (
     path_case_sensitive boolean,
     path_normalizer_version text NOT NULL DEFAULT 'v1',
     created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now()
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (kind, uri)
 );
 
 CREATE TABLE assets (
