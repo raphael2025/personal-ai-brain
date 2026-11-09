@@ -48,7 +48,8 @@ CREATE TABLE scan_runs (
     CHECK (
         (status IN ('pending', 'running') AND finished_at IS NULL)
         OR (status IN ('complete', 'partial', 'failed', 'cancelled') AND finished_at IS NOT NULL)
-    )
+    ),
+    CHECK (finished_at IS NULL OR finished_at >= started_at)
 );
 
 CREATE INDEX scan_runs_root_started_idx
@@ -62,8 +63,8 @@ CREATE TABLE asset_locations (
     relative_path text NOT NULL CHECK (length(relative_path) > 0),
     normalized_path_key text NOT NULL CHECK (length(normalized_path_key) > 0),
     path_normalizer_version text NOT NULL,
-    availability text NOT NULL DEFAULT 'present' CHECK (
-        availability IN ('present', 'missing', 'unavailable', 'excluded')
+    availability text NOT NULL DEFAULT 'available' CHECK (
+        availability IN ('available', 'missing', 'unavailable', 'excluded')
     ),
     first_seen_at timestamptz NOT NULL DEFAULT now(),
     last_seen_at timestamptz NOT NULL DEFAULT now(),
@@ -104,9 +105,6 @@ CREATE TABLE scan_observations (
     UNIQUE (scan_run_id, normalized_path_key, path_normalizer_version)
 );
 
-CREATE INDEX scan_observations_path_idx
-    ON scan_observations (scan_run_id, normalized_path_key, path_normalizer_version);
-
 CREATE TABLE asset_location_events (
     id uuid PRIMARY KEY,
     asset_location_id uuid NOT NULL REFERENCES asset_locations(id) ON DELETE RESTRICT,
@@ -138,7 +136,7 @@ CREATE TABLE processing_artifacts (
         status IN ('pending', 'ready', 'failed', 'stale')
     ),
     created_at timestamptz NOT NULL DEFAULT now(),
-    CHECK (artifact_uri IS NOT NULL OR payload IS NOT NULL),
+    CHECK (status <> 'ready' OR artifact_uri IS NOT NULL OR payload IS NOT NULL),
     CHECK (content_sha256 IS NULL OR content_sha256 ~ '^[0-9a-f]{64}$')
 );
 
@@ -194,9 +192,14 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $function$
 BEGIN
-    IF OLD.status IN ('complete', 'partial', 'failed', 'cancelled')
-       AND NEW.status IS DISTINCT FROM OLD.status THEN
-        RAISE EXCEPTION 'terminal scan runs cannot change status';
+    IF OLD.status IN ('complete', 'partial', 'failed', 'cancelled') THEN
+        IF NEW.status IS DISTINCT FROM OLD.status
+           OR NEW.storage_root_id IS DISTINCT FROM OLD.storage_root_id
+           OR NEW.scanner_version IS DISTINCT FROM OLD.scanner_version
+           OR NEW.started_at IS DISTINCT FROM OLD.started_at
+           OR NEW.finished_at IS DISTINCT FROM OLD.finished_at THEN
+            RAISE EXCEPTION 'terminal scan runs are immutable';
+        END IF;
     END IF;
     IF OLD.status = 'pending' AND NEW.status NOT IN ('pending', 'running', 'failed', 'cancelled') THEN
         RAISE EXCEPTION 'invalid scan status transition: % -> %', OLD.status, NEW.status;
@@ -210,7 +213,7 @@ END;
 $function$;
 
 CREATE TRIGGER scan_runs_valid_transitions
-    BEFORE UPDATE OF status ON scan_runs
+    BEFORE UPDATE ON scan_runs
     FOR EACH ROW EXECUTE FUNCTION prevent_scan_run_reopen();
 
 -- The only built-in operation that marks unseen locations missing.
@@ -240,7 +243,7 @@ BEGIN
         SELECT
             l.id AS location_id,
             l.availability AS old_availability,
-            CASE WHEN o.is_excluded THEN 'excluded' ELSE 'present' END AS new_availability
+            CASE WHEN o.is_excluded THEN 'excluded' ELSE 'available' END AS new_availability
         FROM asset_locations AS l
         JOIN scan_observations AS o
           ON o.scan_run_id = p_scan_run_id
@@ -263,7 +266,7 @@ BEGIN
           FROM asset_locations AS l
          WHERE l.storage_root_id = v_root_id
            AND l.valid_to IS NULL
-           AND l.availability IN ('present', 'excluded')
+           AND l.availability IN ('available', 'excluded')
            AND NOT EXISTS (
                SELECT 1
                  FROM scan_observations AS o
