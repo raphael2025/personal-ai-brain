@@ -14,7 +14,7 @@ def test_identify_file_is_deterministic(tmp_path: Path) -> None:
 
     assert first == second
     assert first.size_bytes == len(b"personal ai brain")
-    assert first.sha256 == "c5bda9c7f44c8d5c2e7f" or len(first.sha256) == 64
+    assert len(first.sha256) == 64
     assert first.asset_version_id.startswith("sha256:")
 
 
