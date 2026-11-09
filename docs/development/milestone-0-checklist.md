@@ -5,16 +5,16 @@ This checklist is intentionally strict. The project remains in Phase 0 until the
 ## Repository and CI
 - [x] Public repository and contribution policy
 - [x] Initial CI workflow with Python 3.11–3.13 matrix
-- [ ] CI run observed passing on GitHub
-- [ ] Dependency lock and supported Python matrix
+- [x] CI run observed passing on GitHub ([run](https://github.com/raphael2025/personal-ai-brain/actions/runs/42635919135), code commit `09e4160`)
+- [x] Supported Python matrix (3.11–3.13)\n- [ ] Dependency lock
 - [ ] Secret scanning and dependency review
 
 ## Asset identity and discovery
 - [x] Streaming SHA-256 file identity primitive
 - [x] Read-only directory scanner with explicit incomplete-scan semantics
 - [x] Scanner does not follow symlinks
-- [ ] Unit tests executed in CI
-- [ ] Storage-root model and validation
+- [x] Unit tests executed in CI (Python 3.11–3.13)
+- [x] StorageRoot and AssetLocation in-memory models with validation tests
 - [ ] Scan-run persistence, checkpoints, and reconciliation
 - [ ] Unavailable-volume and permission-denied tests
 
