@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-from personal_ai_brain.assets.identity import FileChangedDuringReadError, identify_file_at
+from personal_ai_brain.assets.identity import identify_file_at
 from personal_ai_brain.assets.repository import (
     AssetRegistryRepository,
     PreparedObservation,
