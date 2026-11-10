@@ -176,8 +176,12 @@ class AuthorizationRequest:
         _uuid(self.request_id, "request_id")
         if isinstance(self.action, str):
             _safe_text(self.action, "action", maximum=64)
-        if self.purpose is not None:
-            _safe_text(self.purpose, "purpose", maximum=128)
+        if self.purpose is not None and (
+            not isinstance(self.purpose, str)
+            or len(self.purpose) > 128
+            or any(ord(character) < 0x20 or ord(character) == 0x7F for character in self.purpose)
+        ):
+            raise ValueError("purpose must be a safe string of at most 128 characters")
         if self.destination_provider_id is not None:
             _safe_text(self.destination_provider_id, "destination_provider_id", maximum=200)
         _aware(self.now, "now")

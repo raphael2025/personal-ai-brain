@@ -18,7 +18,7 @@ CREATE TABLE policy_principals (
     created_by text NOT NULL CHECK (length(btrim(created_by)) BETWEEN 1 AND 200),
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
-    CHECK (array_position(scopes, '') IS NULL)
+    CHECK (array_position(scopes, '') IS NULL AND array_position(scopes, NULL) IS NULL)
 );
 
 CREATE INDEX policy_principals_enabled_idx
@@ -39,11 +39,25 @@ CREATE TABLE policy_grants (
     created_by text NOT NULL CHECK (length(btrim(created_by)) BETWEEN 1 AND 200),
     created_at timestamptz NOT NULL DEFAULT now(),
     CHECK (cardinality(actions) > 0),
-    CHECK (actions <@ ARRAY['read_metadata', 'read_content', 'search', 'memory_confirm', 'egress']::text[]),
-    CHECK (cardinality(purposes) > 0 AND array_position(purposes, '') IS NULL),
+    CHECK (
+        actions <@ ARRAY['read_metadata', 'read_content', 'search', 'memory_confirm', 'egress']::text[]
+        AND array_position(actions, NULL) IS NULL
+    ),
+    CHECK (
+        cardinality(purposes) > 0
+        AND array_position(purposes, '') IS NULL
+        AND array_position(purposes, NULL) IS NULL
+    ),
     CHECK (cardinality(classifications) > 0),
-    CHECK (classifications <@ ARRAY['public', 'personal', 'sensitive', 'restricted']::text[]),
-    CHECK (cardinality(resource_ids) > 0 OR cardinality(root_ids) > 0),
+    CHECK (
+        classifications <@ ARRAY['public', 'personal', 'sensitive', 'restricted']::text[]
+        AND array_position(classifications, NULL) IS NULL
+    ),
+    CHECK (
+        (cardinality(resource_ids) > 0 OR cardinality(root_ids) > 0)
+        AND array_position(resource_ids, NULL) IS NULL
+        AND array_position(root_ids, NULL) IS NULL
+    ),
     CHECK (
         (actions = ARRAY['egress']::text[] AND provider_id IS NOT NULL
             AND length(btrim(provider_id)) BETWEEN 1 AND 200)

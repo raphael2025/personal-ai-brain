@@ -113,6 +113,22 @@ def test_unknown_and_disabled_principals_deny() -> None:
     ).reason is DecisionReason.PRINCIPAL_DISABLED
 
 
+
+def test_principal_scope_missing_denies_even_when_a_matching_grant_exists() -> None:
+    principal = Principal(
+        principal_id=str(uuid4()),
+        kind=PrincipalKind.AI_CLIENT,
+        display_name="metadata-only client",
+        scopes=frozenset({PolicyAction.READ_METADATA.value}),
+    )
+    resource = make_resource()
+    grant = make_grant(principal, resource)
+    decision = PolicyEngine([principal], [grant], policy_version=1).authorize(
+        request(principal, resource)
+    )
+    assert decision.reason is DecisionReason.PRINCIPAL_SCOPE_MISSING
+
+
 def test_scope_purpose_classification_and_resource_mismatches_deny() -> None:
     principal = make_principal()
     resource = make_resource()
