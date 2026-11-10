@@ -33,7 +33,8 @@ The system is designed around four principles:
 - **[权限与上下文安全](docs/architecture/context-and-policy.md)**：身份、授权、外部模型数据出口。
 - **[实施地图](docs/development/implementation-map.md)**：P0–P3 工作包、依赖顺序和验收标准。
 - **[Asset Registry CLI 使用说明](docs/development/registry-service.md)**：数据库迁移、根目录登记、扫描命令及当前限制。
-- **[Durable Jobs 与 Worker Lease](docs/development/durable-jobs.md)**：任务幂等、能力匹配、租约、fencing、重试和取消；Worker runtime 仍在开发。
+- **[Durable Jobs 与 Worker Lease](docs/development/durable-jobs.md)**：任务幂等、能力匹配、租约、fencing、重试和取消；Worker runtime 仍在完善。
+- **[Extraction Foundation](docs/development/extraction.md)**：首个受限 UTF-8 文本/Markdown 提取器及当前安全边界。
 - [项目状态](PROJECT_STATUS.md) · [完整文档索引](docs/README.md) · [路线图](ROADMAP.md)
 
 ## Goals
