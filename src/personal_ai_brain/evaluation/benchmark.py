@@ -54,6 +54,10 @@ def _load_corpus(dataset_dir: Path) -> list[SearchDocument]:
     return documents
 
 
+def _recall_at(expected: set[str], ranked: list[str], k: int) -> float:
+    return len(expected.intersection(ranked[:k])) / len(expected)
+
+
 def run_benchmark(dataset_dir: Path, *, top_k: int = 10) -> dict[str, Any]:
     """Validate, index, and score the synthetic corpus; timings are observational."""
     dataset_dir = Path(dataset_dir)
@@ -86,9 +90,6 @@ def run_benchmark(dataset_dir: Path, *, top_k: int = 10) -> dict[str, Any]:
         expected = set(question["expected_sources"])
         ranked = [hit.document.doc_id for hit in results]
 
-        def recall_at(k: int) -> float:
-            return len(expected.intersection(ranked[:k])) / len(expected)
-
         relevant_ranks = [
             rank for rank, doc_id in enumerate(ranked, start=1) if doc_id in expected
         ]
@@ -105,8 +106,8 @@ def run_benchmark(dataset_dir: Path, *, top_k: int = 10) -> dict[str, Any]:
             if ranked else 0.0
         )
 
-        r5 = recall_at(5)
-        r10 = recall_at(10)
+        r5 = _recall_at(expected, ranked, 5)
+        r10 = _recall_at(expected, ranked, 10)
         recall_5.append(r5)
         recall_10.append(r10)
         reciprocal_ranks.append(reciprocal_rank)
@@ -164,9 +165,10 @@ def run_benchmark(dataset_dir: Path, *, top_k: int = 10) -> dict[str, Any]:
         "queries": per_query,
         "limitations": [
             "Synthetic corpus only; not representative of personal archives.",
-            "Source paths are used as evidence IDs; persistent chunk/version provenance is not integrated.",
+            "Source paths are evidence IDs; persistent chunk/version provenance is not integrated.",
             "Latency is a small in-process measurement and is not a production capacity benchmark.",
-            "The benchmark evaluates source retrieval, not answer correctness or semantic relevance beyond labelled source IDs.",
+            "The benchmark evaluates source retrieval, not answer correctness or semantic "
+            "relevance beyond labelled source IDs.",
         ],
     }
 
