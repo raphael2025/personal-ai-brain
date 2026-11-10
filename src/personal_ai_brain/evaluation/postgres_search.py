@@ -60,12 +60,16 @@ class PostgresLexicalSearchRepository:
         connection_factory: Callable[[], Any],
         *,
         max_documents: int = 5000,
+        max_total_text_bytes: int = 64 * 1024 * 1024,
         close_connections: bool = True,
     ) -> None:
         if type(max_documents) is not int or max_documents <= 0:
             raise ValueError("max_documents must be a positive integer")
+        if type(max_total_text_bytes) is not int or max_total_text_bytes <= 0:
+            raise ValueError("max_total_text_bytes must be a positive integer")
         self._connect = connection_factory
         self.max_documents = max_documents
+        self.max_total_text_bytes = max_total_text_bytes
         self._close_connections = close_connections
 
     @contextmanager
@@ -165,10 +169,26 @@ class PostgresLexicalSearchRepository:
                     ORDER BY
                         p.asset_version_id, l.storage_root_id, l.relative_path,
                         p.created_at DESC, p.id DESC
+                ), ranked AS (
+                    SELECT *,
+                           row_number() OVER (
+                               ORDER BY root_id, relative_path, asset_version_id
+                           ) AS corpus_position,
+                           count(*) OVER () AS total_documents,
+                           sum(octet_length(extracted_text)) OVER () AS total_text_bytes,
+                           sum(octet_length(extracted_text)) OVER (
+                               ORDER BY root_id, relative_path, asset_version_id
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                           ) AS cumulative_text_bytes
+                      FROM current_text
+                ), bounded AS (
+                    SELECT * FROM ranked
+                     WHERE cumulative_text_bytes <= %s OR corpus_position = 1
                 )
                 SELECT asset_id, asset_version_id, root_id, relative_path,
-                       source_sha256, media_type, modified_at, extracted_text
-                  FROM current_text
+                       source_sha256, media_type, modified_at, extracted_text,
+                       total_documents, total_text_bytes
+                  FROM bounded
                  ORDER BY root_id, relative_path, asset_version_id
                  LIMIT %s
                 """,
@@ -177,10 +197,18 @@ class PostgresLexicalSearchRepository:
                     document_type, document_type,
                     modified_after, modified_after,
                     modified_before, modified_before,
+                    self.max_total_text_bytes,
                     self.max_documents + 1,
                 ),
             ).fetchall()
 
+        if rows and (
+            rows[0][8] > self.max_documents
+            or rows[0][9] > self.max_total_text_bytes
+        ):
+            raise SearchCorpusTooLargeError(
+                "selected corpus exceeds the configured in-memory document or byte limit"
+            )
         if len(rows) > self.max_documents:
             raise SearchCorpusTooLargeError(
                 f"selected corpus exceeds the in-memory limit of {self.max_documents} documents"
