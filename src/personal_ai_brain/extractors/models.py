@@ -37,9 +37,9 @@ class ExtractionRequest:
     source_bytes: bytes
 
     def __post_init__(self) -> None:
-        if not self.asset_version_id or not self.asset_version_id.strip():
+        if not isinstance(self.asset_version_id, str) or not self.asset_version_id.strip():
             raise ValueError("asset_version_id must be non-empty")
-        if len(self.source_sha256) != 64 or any(
+        if not isinstance(self.source_sha256, str) or len(self.source_sha256) != 64 or any(
             char not in "0123456789abcdef" for char in self.source_sha256
         ):
             raise ValueError("source_sha256 must be a lowercase SHA-256 digest")
