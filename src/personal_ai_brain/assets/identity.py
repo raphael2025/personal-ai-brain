@@ -205,9 +205,16 @@ def read_file_at(
     after reading, and the returned bytes are tied to the caller's discovery
     size/mtime snapshot when those values are supplied.
     """
-    if max_bytes <= 0 or chunk_size <= 0:
-        raise ValueError("max_bytes and chunk_size must be greater than zero")
-    if expected_size is not None and expected_size < 0:
+    if (
+        type(max_bytes) is not int
+        or type(chunk_size) is not int
+        or max_bytes <= 0
+        or chunk_size <= 0
+    ):
+        raise ValueError("max_bytes and chunk_size must be positive integers")
+    if expected_size is not None and (
+        type(expected_size) is not int or expected_size < 0
+    ):
         raise ValueError("expected_size must be non-negative")
     if expected_size is not None and expected_size > max_bytes:
         raise ValueError("source exceeds the configured read limit")
@@ -216,6 +223,7 @@ def read_file_at(
     parts = relative_path.split("/")
     if (
         relative_path.startswith("/")
+        or "\x00" in relative_path
         or "\\" in relative_path
         or any(part in {"", ".", ".."} for part in parts)
     ):
