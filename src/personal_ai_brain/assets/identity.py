@@ -187,3 +187,118 @@ def identify_file_at(
             os.close(descriptor)
         if root_fd is not None:
             os.close(root_fd)
+
+
+def read_file_at(
+    root: Path,
+    relative_path: str,
+    *,
+    expected_size: int | None = None,
+    expected_mtime_ns: int | None = None,
+    max_bytes: int = 16 * 1024 * 1024,
+    chunk_size: int = 256 * 1024,
+) -> bytes:
+    """Read a bounded file beneath an explicitly opened root.
+
+    Directory components and the final file are opened descriptor-relative
+    with no-follow semantics. The open file descriptor is checked before and
+    after reading, and the returned bytes are tied to the caller's discovery
+    size/mtime snapshot when those values are supplied.
+    """
+    if (
+        type(max_bytes) is not int
+        or type(chunk_size) is not int
+        or max_bytes <= 0
+        or chunk_size <= 0
+    ):
+        raise ValueError("max_bytes and chunk_size must be positive integers")
+    if expected_size is not None and (
+        type(expected_size) is not int or expected_size < 0
+    ):
+        raise ValueError("expected_size must be non-negative")
+    if expected_size is not None and expected_size > max_bytes:
+        raise ValueError("source exceeds the configured read limit")
+    if not isinstance(relative_path, str) or not relative_path:
+        raise ValueError("relative_path must be a non-empty string")
+    parts = relative_path.split("/")
+    if (
+        relative_path.startswith("/")
+        or "\x00" in relative_path
+        or "\\" in relative_path
+        or any(part in {"", ".", ".."} for part in parts)
+    ):
+        raise ValueError("relative_path must be root-relative without traversal segments")
+    if (
+        os.open not in os.supports_dir_fd
+        or not hasattr(os, "O_DIRECTORY")
+        or not hasattr(os, "O_NOFOLLOW")
+    ):
+        raise RuntimeError("descriptor-relative source reading is unsupported on this platform")
+
+    root_path = Path(root)
+    if not root_path.is_absolute():
+        raise ValueError("root must be an absolute path")
+
+    directory_flags = (
+        os.O_RDONLY
+        | os.O_DIRECTORY
+        | os.O_NOFOLLOW
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    file_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_BINARY", 0)
+        | os.O_NOFOLLOW
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_CLOEXEC", 0)
+    )
+    opened_directories: list[int] = []
+    root_fd: int | None = None
+    file_fd: int | None = None
+    try:
+        root_fd = os.open(root_path, directory_flags)
+        parent_fd = root_fd
+        for component in parts[:-1]:
+            child_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+            opened_directories.append(child_fd)
+            parent_fd = child_fd
+
+        file_fd = os.open(parts[-1], file_flags, dir_fd=parent_fd)
+        with os.fdopen(file_fd, "rb") as stream:
+            file_fd = None
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("source target is not a regular file")
+            if before.st_size > max_bytes:
+                raise ValueError("source exceeds the configured read limit")
+            if expected_size is not None and before.st_size != expected_size:
+                raise FileChangedDuringReadError(
+                    f"File size changed after discovery: {relative_path}"
+                )
+            if expected_mtime_ns is not None and before.st_mtime_ns != expected_mtime_ns:
+                raise FileChangedDuringReadError(
+                    f"File timestamp changed after discovery: {relative_path}"
+                )
+
+            output = bytearray()
+            while chunk := stream.read(min(chunk_size, max_bytes + 1 - len(output))):
+                output.extend(chunk)
+                if len(output) > max_bytes:
+                    raise ValueError("source exceeds the configured read limit")
+
+            after = os.fstat(stream.fileno())
+            if (
+                _file_signature(before) != _file_signature(after)
+                or len(output) != after.st_size
+            ):
+                raise FileChangedDuringReadError(
+                    f"File changed while reading: {relative_path}"
+                )
+            return bytes(output)
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        for descriptor in reversed(opened_directories):
+            os.close(descriptor)
+        if root_fd is not None:
+            os.close(root_fd)
