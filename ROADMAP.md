@@ -24,7 +24,7 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [ ] Worker CLI, process supervision, authenticated source access, and fenced artifact publication
 - [x] Registry CLI: scan status, asset list/inspect, dry-run and explicit audited reconciliation
 - [ ] Worker runtime/CLI, artifact staging and atomic publication
-- [ ] Explicit path-normalizer migration
+- [x] Explicit collision-safe path-normalizer migration with dry-run, collision refusal, audit, and transaction rollback (PR #40)
 
 ## Phase 2 — Extraction, provenance, and search (P1)
 - [ ] Text/Markdown, PDF, DOCX, HTML, and code extractors
