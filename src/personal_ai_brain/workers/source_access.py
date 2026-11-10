@@ -42,7 +42,13 @@ class SourceContent:
 
 class WorkerSourceAccessRepository(Protocol):
     def resolve_source(
-        self, *, worker_id: str, root_id: str, asset_version_id: str
+        self,
+        *,
+        worker_id: str,
+        job_id: str,
+        lease_generation: int,
+        root_id: str,
+        asset_version_id: str,
     ) -> WorkerSourceReference: ...
 
 
@@ -165,7 +171,7 @@ class PostgresWorkerSourceAccessRepository:
                     uuid4(),
                     actor,
                     str(root_uuid),
-                    __import__("json").dumps(
+                    json.dumps(
                         {"worker_id": str(worker_uuid), "permission": "read_source"}
                     ),
                 ),
@@ -173,16 +179,32 @@ class PostgresWorkerSourceAccessRepository:
             return True
 
     def resolve_source(
-        self, *, worker_id: str, root_id: str, asset_version_id: str
+        self,
+        *,
+        worker_id: str,
+        job_id: str,
+        lease_generation: int,
+        root_id: str,
+        asset_version_id: str,
     ) -> WorkerSourceReference:
         worker_uuid = self._uuid(worker_id, "worker_id")
+        job_uuid = self._uuid(job_id, "job_id")
         root_uuid = self._uuid(root_id, "root_id")
         version_uuid = self._uuid(asset_version_id, "asset_version_id")
+        if type(lease_generation) is not int or lease_generation <= 0:
+            raise ValueError("lease_generation must be a positive integer")
         with self._connection() as connection:
             row = connection.execute(
                 """
                 SELECT l.relative_path, v.sha256, v.size_bytes, v.detected_mime_type
                   FROM workers AS w
+                  JOIN processing_jobs AS j
+                    ON j.id = %s
+                   AND j.asset_version_id = %s
+                   AND j.lease_owner_worker_id = w.id
+                   AND j.lease_generation = %s
+                   AND j.status IN ('leased', 'running')
+                   AND j.lease_expires_at > clock_timestamp()
                   JOIN worker_root_grants AS g
                     ON g.worker_id = w.id
                    AND g.storage_root_id = %s
@@ -201,7 +223,7 @@ class PostgresWorkerSourceAccessRepository:
                  ORDER BY l.relative_path, l.id
                  LIMIT 1
                 """,
-                (root_uuid, version_uuid, worker_uuid),
+                (job_uuid, version_uuid, lease_generation, root_uuid, worker_uuid),
             ).fetchone()
         if row is None:
             raise SourceAccessDeniedError(
@@ -297,6 +319,8 @@ class AuthorizedSourceReader:
 
         reference = self.repository.resolve_source(
             worker_id=lease.worker_id,
+            job_id=lease.job_id,
+            lease_generation=lease.generation,
             root_id=root_id,
             asset_version_id=lease.asset_version_id,
         )
