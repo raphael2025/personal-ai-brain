@@ -25,13 +25,14 @@ This page distinguishes merged and validated capabilities from planned architect
 | Secret scanning | Implemented | PR #34 passed Gitleaks |
 | Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions and Python PostgresJobRepository + pull-based WorkerRuntime; worker CLI, authenticated source access, and process supervision remain |
 | Lease-fenced artifact publication | Initial implementation | PostgreSQL JSONB payload publication verifies active lease owner/generation/expiry, job config digest, and immutable source SHA; idempotent across duplicate jobs; no external blob staging or worker handler wiring yet |
+| Root-scoped worker source authorization | Initial implementation | Revocable worker/root grants, audited grant/revoke, local TOML mount mapping, active job-lease verification, descriptor-relative bounded reads, and immutable SHA-256 verification; CLI and handler wiring remain |
 | Text/Markdown extraction adapter | Initial implementation | UTF-8, 16 MiB bound, source SHA-256 verification, explicit malformed-input outcomes; not yet wired to artifact store or WorkerRuntime |
 | BM25 lexical retrieval and synthetic benchmark | Initial implementation | Dependency-free in-memory BM25, metadata filters, deterministic ranking, five labelled queries over four synthetic documents; not a persistent or production search service |
 | Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
 
 ## Not implemented yet
 
-- Worker CLI/process supervisor, graceful signal/drain controls, authenticated root-scoped source access, external content-addressed artifact storage/staging/garbage collection, handler wiring, and operational recovery
+- Worker CLI/process supervisor, graceful signal/drain controls, worker enrollment/grant/revoke CLI, extraction handler wiring, external content-addressed artifact storage/staging/garbage collection, and operational recovery
 - Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
 - PDF/DOCX/HTML/archive/image/audio/video extractors, authorized worker source mapping, and end-to-end extraction-to-artifact pipeline
