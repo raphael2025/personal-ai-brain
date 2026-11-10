@@ -67,7 +67,9 @@ def make_lease() -> JobLease:
 
 def test_runtime_completes_successful_handler():
     repository = FakeRepository(make_lease())
-    runtime = WorkerRuntime(repository, repository.lease.worker_id, {"extract_text": lambda lease: None})
+    runtime = WorkerRuntime(
+        repository, repository.lease.worker_id, {"extract_text": lambda lease: None}
+    )
 
     assert runtime.run_once() is True
     assert repository.completed == 1
@@ -84,7 +86,11 @@ def test_runtime_marks_missing_handler_as_permanent_failure():
 
 
 def test_runtime_retries_unexpected_handler_error_but_not_permanent_error():
-    for error, retryable in ((ValueError("bad input"), True), (PermanentJobError("unsupported"), False)):
+    cases = (
+        (ValueError("bad input"), True),
+        (PermanentJobError("unsupported"), False),
+    )
+    for error, retryable in cases:
         repository = FakeRepository(make_lease())
 
         def handler(_lease, raised=error):
