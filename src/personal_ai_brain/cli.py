@@ -191,7 +191,10 @@ def _run_worker(
     stop_event = Event()
 
     def request_stop(signum, _frame) -> None:
-        print(f"received signal {signum}; finishing the active job before shutdown", file=sys.stderr)
+        print(
+            f"received signal {signum}; finishing the active job before shutdown",
+            file=sys.stderr,
+        )
         stop_event.set()
 
     previous_handlers = {
