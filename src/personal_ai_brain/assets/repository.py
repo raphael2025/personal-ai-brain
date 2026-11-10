@@ -26,6 +26,30 @@ class StorageRootRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class PathNormalizerChange:
+    location_id: str
+    relative_path: str
+    previous_key: str
+    target_key: str
+
+
+@dataclass(frozen=True, slots=True)
+class PathNormalizerCollision:
+    target_key: str
+    location_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PathNormalizerMigrationPlan:
+    root_id: str
+    from_version: str
+    to_version: str
+    changes: tuple[PathNormalizerChange, ...]
+    collisions: tuple[PathNormalizerCollision, ...]
+    applied: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class PreparedObservation:
     observation: ScanObservation
     sha256: str | None = None
@@ -54,6 +78,14 @@ class AssetRegistryRepository(Protocol):
 
     def reconcile_scan(self, scan_id: str, *, actor: str) -> int: ...
 
+    def preview_path_normalizer_migration(
+        self, root_id: str, *, target_version: str
+    ) -> PathNormalizerMigrationPlan: ...
+
+    def apply_path_normalizer_migration(
+        self, root_id: str, *, target_version: str, actor: str
+    ) -> PathNormalizerMigrationPlan: ...
+
     def fail_scan(self, scan_id: str, error_summary: str) -> None: ...
 
 
@@ -63,6 +95,10 @@ class RegistryNotFoundError(LookupError):
 
 class PathNormalizerMigrationRequired(RuntimeError):
     """Active location keys need explicit migration before scanning can reconcile."""
+
+
+class PathNormalizerCollisionError(RuntimeError):
+    """A target normalizer would make distinct active locations collide."""
 
 
 class IdempotencyConflict(RuntimeError):
@@ -168,6 +204,174 @@ class PostgresAssetRegistryRepository:
             ).fetchall()
         return [self._root_record(row) for row in rows]
 
+    def _path_normalizer_migration(
+        self,
+        root_id: str,
+        *,
+        target_version: str,
+        actor: str | None,
+    ) -> PathNormalizerMigrationPlan:
+        root_uuid = self._uuid(root_id)
+        if target_version not in {"v1-exact", "v1-casefold"}:
+            raise ValueError("target_version must be v1-exact or v1-casefold")
+        if actor is not None:
+            if not isinstance(actor, str) or not actor.strip() or len(actor) > 200:
+                raise ValueError("actor must be non-empty and at most 200 characters")
+            if any(ord(char) < 0x20 or ord(char) == 0x7F for char in actor):
+                raise ValueError("actor must not contain ASCII control characters")
+
+        with self._connection() as connection:
+            root = connection.execute(
+                """
+                SELECT path_normalizer_version
+                  FROM storage_roots
+                 WHERE id = %s
+                 FOR UPDATE
+                """,
+                (root_uuid,),
+            ).fetchone()
+            if root is None:
+                raise RegistryNotFoundError(f"storage root not found: {root_id}")
+            current_version = root[0]
+
+            if current_version not in {"v1-exact", "v1-casefold"}:
+                raise ValueError(f"unsupported current path normalizer: {current_version}")
+
+            running_scans = connection.execute(
+                """
+                SELECT count(*) FROM scan_runs
+                 WHERE storage_root_id = %s
+                   AND status IN ('pending', 'running')
+                """,
+                (root_uuid,),
+            ).fetchone()[0]
+            if running_scans:
+                raise ValueError("path normalizer migration is blocked by pending or running scans")
+
+            rows = connection.execute(
+                """
+                SELECT id, relative_path, normalized_path_key, path_normalizer_version
+                  FROM asset_locations
+                 WHERE storage_root_id = %s AND valid_to IS NULL
+                 ORDER BY relative_path, id
+                 FOR UPDATE
+                """,
+                (root_uuid,),
+            ).fetchall()
+
+            changes: list[PathNormalizerChange] = []
+            by_target_key: dict[str, list[str]] = {}
+            for location_id, relative_path, previous_key, stored_version in rows:
+                if stored_version != current_version:
+                    raise PathNormalizerMigrationRequired(
+                        "active locations do not share the storage root's current normalizer"
+                    )
+                target_key = self._normalized_key(relative_path, target_version)
+                changes.append(
+                    PathNormalizerChange(
+                        location_id=str(location_id),
+                        relative_path=relative_path,
+                        previous_key=previous_key,
+                        target_key=target_key,
+                    )
+                )
+                by_target_key.setdefault(target_key, []).append(str(location_id))
+
+            collisions = tuple(
+                PathNormalizerCollision(target_key=key, location_ids=tuple(ids))
+                for key, ids in sorted(by_target_key.items())
+                if len(ids) > 1
+            )
+            plan = PathNormalizerMigrationPlan(
+                root_id=str(root_uuid),
+                from_version=current_version,
+                to_version=target_version,
+                changes=tuple(changes),
+                collisions=collisions,
+                applied=False,
+            )
+
+            if collisions:
+                if actor is not None:
+                    raise PathNormalizerCollisionError(
+                        f"normalizer migration would collide at {len(collisions)} path key(s)"
+                    )
+                return plan
+
+            if actor is None or current_version == target_version:
+                return plan
+
+            for change in changes:
+                connection.execute(
+                    """
+                    UPDATE asset_locations
+                       SET normalized_path_key = %s,
+                           path_normalizer_version = %s
+                     WHERE id = %s AND storage_root_id = %s
+                       AND valid_to IS NULL
+                    """,
+                    (
+                        change.target_key,
+                        target_version,
+                        self._uuid(change.location_id),
+                        root_uuid,
+                    ),
+                )
+
+            connection.execute(
+                """
+                UPDATE storage_roots
+                   SET path_normalizer_version = %s, updated_at = now()
+                 WHERE id = %s
+                """,
+                (target_version, root_uuid),
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events (
+                    id, actor, action, target_type, target_id, decision, details
+                )
+                VALUES (%s, %s, 'storage_root.path_normalizer_migrate',
+                        'storage_root', %s, 'recorded', %s::jsonb)
+                """,
+                (
+                    uuid4(),
+                    actor.strip(),
+                    str(root_uuid),
+                    json.dumps(
+                        {
+                            "from_version": current_version,
+                            "to_version": target_version,
+                            "active_locations": len(changes),
+                            "collisions": 0,
+                        }
+                    ),
+                ),
+            )
+
+            return PathNormalizerMigrationPlan(
+                root_id=str(root_uuid),
+                from_version=current_version,
+                to_version=target_version,
+                changes=tuple(changes),
+                collisions=(),
+                applied=True,
+            )
+
+    def preview_path_normalizer_migration(
+        self, root_id: str, *, target_version: str
+    ) -> PathNormalizerMigrationPlan:
+        return self._path_normalizer_migration(
+            root_id, target_version=target_version, actor=None
+        )
+
+    def apply_path_normalizer_migration(
+        self, root_id: str, *, target_version: str, actor: str
+    ) -> PathNormalizerMigrationPlan:
+        return self._path_normalizer_migration(
+            root_id, target_version=target_version, actor=actor
+        )
+
     def start_scan(self, root_id: str, *, scanner_version: str) -> str:
         scan_id = uuid4()
         root_uuid = self._uuid(root_id)
@@ -177,6 +381,7 @@ class PostgresAssetRegistryRepository:
                 SELECT path_normalizer_version, enabled
                   FROM storage_roots
                  WHERE id = %s
+                 FOR UPDATE
                 """,
                 (root_uuid,),
             ).fetchone()
@@ -449,13 +654,19 @@ class PostgresAssetRegistryRepository:
         scan_uuid = self._uuid(scan_id)
         with self._connection() as connection:
             scan = connection.execute(
-                "SELECT status FROM scan_runs WHERE id = %s FOR UPDATE",
+                "SELECT storage_root_id, status FROM scan_runs WHERE id = %s FOR UPDATE",
                 (scan_uuid,),
             ).fetchone()
             if scan is None:
                 raise RegistryNotFoundError(f"scan not found: {scan_id}")
-            if scan[0] != ScanStatus.COMPLETE.value:
+            if scan[1] != ScanStatus.COMPLETE.value:
                 raise ValueError("reconciliation requires a COMPLETE scan")
+
+            # Serialize reconciliation with root normalizer migration and scan start.
+            connection.execute(
+                "SELECT id FROM storage_roots WHERE id = %s FOR UPDATE",
+                (scan[0],),
+            ).fetchone()
 
             changed = int(
                 connection.execute(
