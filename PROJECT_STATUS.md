@@ -18,24 +18,24 @@ This page distinguishes merged and validated capabilities from planned architect
 | Storage locations and scan history | Implemented | Current location and historical events are stored |
 | COMPLETE-only reconciliation | Implemented | PARTIAL/FAILED scans never infer missing locations; complete empty scans can mark locations missing |
 | Registry repository and scan service | Implemented | Initial root/scan path; scan completion no longer implicitly marks unseen locations missing; operator reconciliation is explicit and audited |
-| CLI | Initial implementation | pab root add/list, scan, scan-status, asset list/inspect, reconcile preview/apply; worker commands and scan resume remain |
+| CLI | Initial implementation | Registry commands plus worker register/grant-root/revoke-root/run and extract enqueue; foreground worker only, no Windows service/daemon or remote worker |
 | Scan replay handling | Implemented | Identical finalization is idempotent; conflicting replay is rejected |
 | CI | Implemented | Python 3.11–3.13; PR #34 passed all matrix jobs |
 | CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
 | Secret scanning | Implemented | PR #34 passed Gitleaks |
-| Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions and Python PostgresJobRepository + pull-based WorkerRuntime; worker CLI, authenticated source access, and process supervision remain |
-| Lease-fenced artifact publication | Initial implementation | PostgreSQL JSONB payload publication verifies active lease owner/generation/expiry, job config digest, and immutable source SHA; idempotent across duplicate jobs; no external blob staging or worker handler wiring yet |
-| Root-scoped worker source authorization | Initial implementation | Revocable worker/root grants, audited grant/revoke, local TOML mount mapping, active job-lease verification, descriptor-relative bounded reads, and immutable SHA-256 verification; CLI and handler wiring remain |
-| Text/Markdown extraction adapter | Initial implementation | UTF-8, 16 MiB bound, source SHA-256 verification, explicit malformed-input outcomes; not yet wired to artifact store or WorkerRuntime |
+| Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions, Python repository/runtime, worker registration, root grants, extraction enqueue, foreground run, heartbeat and signal drain; process supervision and crash-recovery drills remain |
+| Lease-fenced artifact publication | Initial implementation | PostgreSQL JSONB payload publication verifies active lease owner/generation/expiry, job config digest, and immutable source SHA; wired to the text extraction handler; no external blob staging or garbage collection yet |
+| Root-scoped worker source authorization | Initial implementation | Revocable worker/root grants, audited CLI grant/revoke, local TOML mount mapping, active job-lease verification, descriptor-relative bounded reads, and immutable SHA-256 verification |
+| Text/Markdown extraction pipeline | Initial implementation | End-to-end enqueue, active-lease source read, UTF-8 extraction, fenced PostgreSQL JSONB artifact publication, and job completion; 16 MiB bound; other document formats are not implemented |
 | BM25 lexical retrieval and synthetic benchmark | Initial implementation | Dependency-free in-memory BM25, metadata filters, deterministic ranking, five labelled queries over four synthetic documents; not a persistent or production search service |
 | Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
 
 ## Not implemented yet
 
-- Worker CLI/process supervisor, graceful signal/drain controls, worker enrollment/grant/revoke CLI, extraction handler wiring, external content-addressed artifact storage/staging/garbage collection, and operational recovery
+- OS-level worker sandboxing, per-worker database credentials, Windows service/daemon supervision, remote worker protocol, external content-addressed artifact storage/staging/garbage collection, and crash/recovery drills
 - Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
-- PDF/DOCX/HTML/archive/image/audio/video extractors, authorized worker source mapping, and end-to-end extraction-to-artifact pipeline
+- PDF/DOCX/HTML/archive/image/audio/video extractors and corresponding end-to-end artifact pipelines; current end-to-end path supports bounded UTF-8 text/Markdown/code
 - OCR, transcription, embeddings, persistent/chunk-level retrieval, vector retrieval, and a larger labelled evaluation corpus
 - Memory lifecycle, activation scoring, and progressive L0/L1/L2 runtime
 - Knowledge graph, claim/evidence model, and conflict resolution
@@ -49,7 +49,7 @@ Install the optional PostgreSQL support and developer tools:
 
     python -m pip install -e ".[postgres,dev]"
 
-Set PAB_DATABASE_URL, apply the SQL migration manually, then use:
+Set PAB_DATABASE_URL. Apply migrations 0001–0004 in order to enable the complete worker path; the registry-only path starts at migration 0001. Then use:
 
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
@@ -61,6 +61,15 @@ Set PAB_DATABASE_URL, apply the SQL migration manually, then use:
     pab reconcile apply <scan-uuid> --actor operator-name
 
 SMB/NFS roots require an explicit local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for details and limitations.
+
+Worker commands:
+
+    pab worker register --worker-id <worker-uuid> --name "text worker" --capability text
+    pab worker grant-root --worker-id <worker-uuid> --root-id <root-uuid> --actor operator
+    pab extract enqueue --asset-version-id <version-uuid> --root-id <root-uuid>
+    pab worker run --worker-id <worker-uuid> --mounts-config /etc/pab/worker-mounts.toml --once
+
+See [Local Worker Operations](docs/development/worker-operations.md) for mount configuration, continuous operation, revocation, and limits.
 
 Run the synthetic lexical retrieval benchmark (no database required):
 
@@ -80,7 +89,4 @@ Do not point the scanner at hostile or attacker-writable filesystems and assume 
 - Integrations remain experimental until their versions, licenses, update behavior, recovery behavior, and provenance have been tested.
 
 
-See [Durable Jobs and Worker Lease Foundation](docs/development/durable-jobs.md) for the migration, SQL function contract, and current limitations.
-
-
-The [Durable Jobs and Worker Lease guide](docs/development/durable-jobs.md) now includes the Python repository adapter and pull-based runtime. The worker still cannot publish artifacts or read arbitrary source paths through a privileged interface.
+See [Durable Jobs and Worker Lease Foundation](docs/development/durable-jobs.md), [Lease-Fenced Artifact Publication](docs/development/artifact-publication.md), and [Local Worker Operations](docs/development/worker-operations.md) for the migration, CLI, and security contracts.
