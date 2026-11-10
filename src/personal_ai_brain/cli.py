@@ -278,8 +278,8 @@ def main(argv: list[str] | None = None) -> int:
             for result in results:
                 snippet = result.snippet.replace("\t", " ").replace("\n", " ")
                 print(
-                    f"{result.score:.6f}\\t{result.asset_id}\\t{result.asset_version_id}\\t"
-                    f"{result.root_id}\\t{result.relative_path}\\t{result.source_sha256}\\t"
+                    f"{result.score:.6f}\t{result.asset_id}\t{result.asset_version_id}\t"
+                    f"{result.root_id}\t{result.relative_path}\t{result.source_sha256}\t"
                     f"{snippet}"
                 )
             if not results:
