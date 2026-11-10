@@ -51,11 +51,13 @@ def make_grant(principal: Principal, resource: PolicyResource, **overrides) -> P
     return PolicyGrant(**values)
 
 
-def request(principal: Principal, resource: PolicyResource, **overrides) -> AuthorizationRequest:
+def request(
+    principal: Principal, default_resource: PolicyResource, **overrides
+) -> AuthorizationRequest:
     values = {
         "principal_id": principal.principal_id,
         "action": PolicyAction.READ_CONTENT,
-        "resource": resource,
+        "resource": default_resource,
         "purpose": "assistant_answer",
         "now": datetime(2026, 1, 1, tzinfo=UTC),
     }
