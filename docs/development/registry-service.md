@@ -41,7 +41,7 @@ The service:
 3. Hashes discovered regular files with SHA-256.
 4. Stores scan observations, logical asset IDs, immutable content versions, and locations in one transaction; replaying an identical finalization is idempotent, while a conflicting replay is rejected.
 5. Marks the scan COMPLETE, PARTIAL, or FAILED.
-6. Calls database reconciliation only for COMPLETE scans.
+6. Does **not** automatically mark unseen locations missing. Reconciliation is a separate operator action, available only for COMPLETE scans and recorded in audit_events.
 
 A file that changes or becomes inaccessible between discovery and hashing makes the scan PARTIAL. Partial and failed scans never infer missing locations. Identical bytes at two different paths create separate logical assets; content fingerprints are not automatic merge authority.
 
@@ -50,9 +50,21 @@ A file that changes or becomes inaccessible between discovery and hashing makes 
 - Hashing uses descriptor-relative opens beneath the configured root, O_NOFOLLOW on each path component, discovery-metadata checks, and before/after file-descriptor checks. It fails closed when the platform lacks the required primitives. This prevents symlink traversal during the hash phase, but it is not a complete sandbox against every hostile concurrent rename pattern; see the scanner threat model and Issue #12.
 - Network roots require an operator-provided local mount path. No SMB/NFS client, mount management, or remote credential storage is included.
 - A process crash can leave a scan in RUNNING. Durable scan/job recovery and worker leases are follow-up work.
-- The CLI currently supports root enrollment/listing and scanning. Asset browsing, scan resume, dry-run reconciliation, and explicit normalizer migration are follow-up work.
+- The CLI supports root enrollment/listing, scanning, scan history, asset list/inspect, reconciliation preview, and explicit audited reconciliation apply. Scan resume, crash recovery, and explicit normalizer migration remain follow-up work.
+- Reconciliation is deliberately two-step: run `pab reconcile preview <scan-id>` first, then `pab reconcile apply <scan-id> --actor <identity>` only after reviewing the candidates. Preview is read-only; apply requires a COMPLETE scan and writes an audit event.
 - The migration must be applied before using the CLI. The CLI does not auto-run migrations.
 
 ## Safety
 
-Original files are never written, renamed, or deleted. PAB_DATABASE_URL is loaded at runtime and is not logged. The service fails if the root is disabled, unknown, or requires an explicit mount path. A complete empty scan can mark previously known paths missing; therefore only enroll roots whose full scan scope is accessible and intended.
+Original files are never written, renamed, or deleted. PAB_DATABASE_URL is loaded at runtime and is not logged. The service fails if the root is disabled, unknown, or requires an explicit mount path. A complete empty scan does not change location availability until an operator explicitly applies reconciliation. Review the dry-run candidate list before applying it.
+
+
+## Operator inspection commands
+
+    pab scan-status --root-id <root-uuid> --limit 50
+    pab asset list --root-id <root-uuid> --limit 100
+    pab asset inspect <asset-uuid>
+    pab reconcile preview <scan-uuid>
+    pab reconcile apply <scan-uuid> --actor operator-name
+
+The preview lists active locations that would become missing. It does not write registry rows. The apply command refuses non-COMPLETE scans, performs reconciliation in a database transaction, and records the actor and outcome in `audit_events`. Treat the actor as an operator identity, not as a password or secret.
