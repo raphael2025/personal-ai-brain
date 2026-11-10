@@ -27,7 +27,8 @@ from personal_ai_brain.ingestion.repository import PostgresJobRepository  # noqa
 MIGRATIONS = [
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0001_asset_registry.sql",
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0002_durable_jobs.sql",
-    Path(__file__).parents[2] / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
+    Path(__file__).parents[2]
+    / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
 ]
 
 
@@ -194,7 +195,11 @@ def test_same_artifact_identity_with_different_output_is_rejected(artifact_envir
 
     second_lease = enqueue_and_claim(jobs, version_id, worker_b, key="conflict-b")
     with pytest.raises(ArtifactConflictError):
-        artifacts.publish(second_lease, make_artifact(version_id, source_digest, "different"), config_digest="c" * 64)
+        artifacts.publish(
+            second_lease,
+            make_artifact(version_id, source_digest, "different"),
+            config_digest="c" * 64,
+        )
 
 
 def test_source_digest_must_match_immutable_asset_version(artifact_environment):
