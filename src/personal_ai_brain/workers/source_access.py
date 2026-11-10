@@ -227,6 +227,8 @@ class WorkerMountMap:
             worker_id = str(UUID(self.worker_id))
         except (ValueError, TypeError, AttributeError) as exc:
             raise ValueError("worker_id must be a UUID string") from exc
+        if not isinstance(self.mounts, Mapping):
+            raise ValueError("mounts must be a mapping")
         normalized: dict[str, Path] = {}
         for root_id, mount_path in self.mounts.items():
             try:
@@ -236,6 +238,8 @@ class WorkerMountMap:
             path = Path(mount_path).expanduser()
             if not path.is_absolute():
                 raise ValueError("worker mount paths must be absolute")
+            if "\x00" in str(path):
+                raise ValueError("worker mount paths must not contain NUL")
             if normalized_root_id in normalized:
                 raise ValueError("duplicate storage-root mount")
             normalized[normalized_root_id] = path
@@ -248,7 +252,11 @@ def load_worker_mount_map(
 ) -> WorkerMountMap:
     """Load an explicit worker-local TOML mount map; paths never come from job payloads."""
     raw = tomllib.loads(Path(config_path).read_text(encoding="utf-8"))
-    if set(raw) != {"version", "worker_id", "mounts"} or raw["version"] != 1:
+    if (
+        set(raw) != {"version", "worker_id", "mounts"}
+        or type(raw["version"]) is not int
+        or raw["version"] != 1
+    ):
         raise ValueError("mount config must contain only version=1, worker_id, and mounts")
     if not isinstance(raw["mounts"], dict):
         raise ValueError("mounts must be a TOML table")
