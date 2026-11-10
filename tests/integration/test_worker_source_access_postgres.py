@@ -195,10 +195,11 @@ def test_symlink_source_is_rejected_even_with_root_grant(source_environment, tmp
 def test_source_bytes_must_match_registered_version(source_environment):
     repository, _, root_id, version_id, worker_id, root, _, _ = source_environment
     repository.grant_root(worker_id, root_id, actor="operator")
-    (root / "notes.md").write_bytes(b"tampered")
+    original_size = len((root / "notes.md").read_bytes())
+    (root / "notes.md").write_bytes(b"X" * original_size)
     reader = AuthorizedSourceReader(
         repository, WorkerMountMap(worker_id, {root_id: root})
     )
 
-    with pytest.raises((ValueError, SourceContentMismatchError)):
+    with pytest.raises(SourceContentMismatchError):
         reader.read_for_lease(make_lease(worker_id, version_id, root_id))
