@@ -9,12 +9,12 @@ from pathlib import Path
 from uuid import uuid4
 
 from personal_ai_brain.assets.models import StorageKind, StorageRoot
-from personal_ai_brain.assets.repository import PostgresAssetRegistryRepository
+from personal_ai_brain.assets.operations import PostgresAssetRegistryOperations
 from personal_ai_brain.assets.scanner import ScanStatus
 from personal_ai_brain.assets.service import AssetRegistryService
 
 
-def _repository() -> PostgresAssetRegistryRepository:
+def _repository() -> PostgresAssetRegistryOperations:
     dsn = os.environ.get("PAB_DATABASE_URL")
     if not dsn:
         raise RuntimeError("Set PAB_DATABASE_URL to the PostgreSQL connection string")
@@ -24,7 +24,7 @@ def _repository() -> PostgresAssetRegistryRepository:
         raise RuntimeError(
             "PostgreSQL support is optional; install personal-ai-brain[postgres]"
         ) from exc
-    return PostgresAssetRegistryRepository(lambda: psycopg.connect(dsn))
+    return PostgresAssetRegistryOperations(lambda: psycopg.connect(dsn))
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -52,7 +52,33 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="explicit local mount path for SMB/NFS roots; does not change the stored URI",
     )
+
+    scan_status = commands.add_parser("scan-status", help="show recent scan history")
+    scan_status.add_argument("--root-id")
+    scan_status.add_argument("--limit", type=int, default=50)
+
+    assets = commands.add_parser("asset", help="inspect registered assets")
+    asset_commands = assets.add_subparsers(dest="asset_command", required=True)
+    asset_list = asset_commands.add_parser("list", help="list current asset locations")
+    asset_list.add_argument("--root-id")
+    asset_list.add_argument("--limit", type=int, default=100)
+    asset_list.add_argument("--offset", type=int, default=0)
+    asset_inspect = asset_commands.add_parser("inspect", help="show versions and locations")
+    asset_inspect.add_argument("asset_id")
+
+    reconcile = commands.add_parser("reconcile", help="inspect reconciliation candidates")
+    reconcile_commands = reconcile.add_subparsers(dest="reconcile_command", required=True)
+    preview = reconcile_commands.add_parser(
+        "preview", help="dry-run; list locations a COMPLETE scan would mark missing"
+    )
+    preview.add_argument("scan_id")
+
     return parser
+
+
+def _print_rows(rows: list[tuple[object, ...]]) -> None:
+    for row in rows:
+        print("\t".join("" if value is None else str(value) for value in row))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -101,6 +127,34 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
             return 0 if execution.result.status is ScanStatus.COMPLETE else 2
+
+        if args.command == "scan-status":
+            _print_rows(repository.list_scans(root_id=args.root_id, limit=args.limit))
+            return 0
+
+        if args.command == "asset" and args.asset_command == "list":
+            _print_rows(
+                repository.list_assets(
+                    root_id=args.root_id, limit=args.limit, offset=args.offset
+                )
+            )
+            return 0
+
+        if args.command == "asset" and args.asset_command == "inspect":
+            versions, locations = repository.inspect_asset(args.asset_id)
+            print("VERSIONS")
+            _print_rows(versions)
+            print("LOCATIONS")
+            _print_rows(locations)
+            return 0
+
+        if args.command == "reconcile" and args.reconcile_command == "preview":
+            scan, candidates = repository.preview_reconciliation(args.scan_id)
+            print(f"scan_id={scan[0]} root_id={scan[1]} status={scan[2]}")
+            print(f"would_mark_missing={len(candidates)}")
+            _print_rows(candidates)
+            print("DRY RUN ONLY: no registry rows were changed.")
+            return 0
     except Exception as exc:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
