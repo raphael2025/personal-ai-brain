@@ -8,6 +8,7 @@ psycopg only when PostgreSQL persistence is selected.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -474,7 +475,7 @@ class PostgresAssetRegistryRepository:
                     uuid4(),
                     actor.strip(),
                     str(scan_uuid),
-                    __import__("json").dumps(
+                    json.dumps(
                         {"availability_events": changed, "scan_id": str(scan_uuid)}
                     ),
                 ),
