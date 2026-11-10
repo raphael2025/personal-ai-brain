@@ -20,8 +20,9 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] Persistent assets, versions, locations, scan runs, observations
 - [x] Transactional COMPLETE-only reconciliation
 - [ ] Rename/duplicate candidate resolution without destructive auto-merge
-- [ ] Durable job/attempt/lease model with fencing and retries
-- [ ] Complete CLI: scan status, asset list/inspect, dry-run reconciliation, worker operations
+- [x] Durable job schema and fenced lease transitions (PR #38); Python worker runtime remains open in Issue #21
+- [x] Registry CLI: scan status, asset list/inspect, dry-run and explicit audited reconciliation
+- [ ] Worker runtime/CLI, artifact staging and atomic publication
 - [ ] Explicit path-normalizer migration
 
 ## Phase 2 — Extraction, provenance, and search (P1)
