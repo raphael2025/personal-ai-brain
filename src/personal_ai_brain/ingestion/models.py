@@ -54,6 +54,7 @@ class JobSpec:
 @dataclass(frozen=True, slots=True)
 class JobLease:
     job_id: str
+    worker_id: str
     asset_version_id: str
     task_type: str
     semantic_version: str
