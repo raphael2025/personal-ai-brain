@@ -37,7 +37,9 @@ class JobSpec:
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} must be a non-empty string")
-        if not isinstance(self.config_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", self.config_digest):
+        if not isinstance(self.config_digest, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", self.config_digest
+        ):
             raise ValueError("config_digest must be a lowercase SHA-256 hex digest")
         if not isinstance(self.payload, dict):
             raise ValueError("payload must be a JSON object")
