@@ -21,7 +21,10 @@ ALTER TABLE processing_artifacts
         CHECK (
             (job_id IS NULL AND lease_generation IS NULL AND published_by_worker_id IS NULL)
             OR
-            (job_id IS NOT NULL AND lease_generation > 0 AND published_by_worker_id IS NOT NULL)
+            (job_id IS NOT NULL AND lease_generation IS NOT NULL AND lease_generation > 0
+                AND published_by_worker_id IS NOT NULL AND source_sha256 IS NOT NULL
+                AND config_digest IS NOT NULL AND output_schema_version IS NOT NULL
+                AND size_bytes IS NOT NULL)
         ),
     ADD CONSTRAINT processing_artifacts_schema_version_check
         CHECK (output_schema_version IS NULL OR length(btrim(output_schema_version)) > 0);
