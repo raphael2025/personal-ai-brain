@@ -31,11 +31,11 @@ Properties:
     )
     artifact = TextMarkdownExtractor().extract(request)
 
-The adapter requires the caller to supply bytes already read from the exact source version. Source-root authorization and descriptor-relative bounded reads are separate responsibilities.
+The adapter requires the caller to supply bytes already read from the exact source version. `assets.identity.read_file_at` now provides bounded descriptor-relative no-follow reads under an explicitly supplied absolute root and can compare discovery size/mtime metadata. The caller must still authorize which root path may be read and verify the resulting SHA-256 against the immutable AssetVersion before extraction.
 
 ## Not implemented yet
 
-- Safe source reader integrated with StorageRoot authorization.
+- Source-reader integration with persistent root mount mapping and authorization policy.
 - PDF, DOCX, HTML, archive, image, audio, and video extractors.
 - Isolated artifact staging, content-addressed storage, checksum revalidation, and atomic publication.
 - Fenced publication tied to the active job lease.
