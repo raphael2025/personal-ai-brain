@@ -156,4 +156,102 @@ class PostgresLexicalSearchRepository:
                       AND (%s::uuid IS NULL OR l.storage_root_id = %s::uuid)
                       AND (
                           %s::text IS NULL
-                          OR lower(substring(l.relative_path FROM '[.]([^./]+)$'
+                          OR lower(substring(l.relative_path FROM '[.]([^./]+)$')) = %s::text
+                      )
+                      AND (
+                          %s::timestamptz IS NULL
+                          OR v.observed_modified_at >= %s::timestamptz
+                      )
+                      AND (
+                          %s::timestamptz IS NULL
+                          OR v.observed_modified_at <= %s::timestamptz
+                      )
+                    ORDER BY
+                        p.asset_version_id, l.storage_root_id, l.relative_path,
+                        p.created_at DESC, p.id DESC
+                ), ranked AS (
+                    SELECT *,
+                           row_number() OVER (
+                               ORDER BY root_id, relative_path, asset_version_id
+                           ) AS corpus_position,
+                           count(*) OVER () AS total_documents,
+                           sum(octet_length(extracted_text)) OVER () AS total_text_bytes,
+                           sum(octet_length(extracted_text)) OVER (
+                               ORDER BY root_id, relative_path, asset_version_id
+                               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                           ) AS cumulative_text_bytes
+                      FROM current_text
+                ), bounded AS (
+                    SELECT * FROM ranked
+                     WHERE cumulative_text_bytes <= %s OR corpus_position = 1
+                )
+                SELECT asset_id, asset_version_id, root_id, relative_path,
+                       source_sha256, media_type, modified_at, extracted_text,
+                       total_documents, total_text_bytes
+                  FROM bounded
+                 ORDER BY root_id, relative_path, asset_version_id
+                 LIMIT %s
+                """,
+                (
+                    root_uuid, root_uuid,
+                    document_type, document_type,
+                    modified_after, modified_after,
+                    modified_before, modified_before,
+                    self.max_total_text_bytes,
+                    self.max_documents + 1,
+                ),
+            ).fetchall()
+
+        if rows and (
+            rows[0][8] > self.max_documents
+            or rows[0][9] > self.max_total_text_bytes
+        ):
+            raise SearchCorpusTooLargeError(
+                "selected corpus exceeds the configured in-memory document or byte limit"
+            )
+        if len(rows) > self.max_documents:
+            raise SearchCorpusTooLargeError(
+                f"selected corpus exceeds the in-memory limit of {self.max_documents} documents"
+            )
+
+        documents: list[SearchDocument] = []
+        evidence_by_id: dict[str, tuple[Any, ...]] = {}
+        for row in rows:
+            asset_id, version_id, source_root_id, relative_path = row[:4]
+            text = row[7]
+            if not isinstance(text, str):
+                raise ValueError("persisted extracted_text artifact has no text payload")
+            source_root_id = str(source_root_id)
+            version_id = str(version_id)
+            doc_id = f"{version_id}:{source_root_id}:{relative_path}"
+            suffix = PurePosixPath(relative_path).suffix.casefold().lstrip(".") or "unknown"
+            documents.append(
+                SearchDocument(
+                    doc_id=doc_id,
+                    text=text,
+                    root_id=source_root_id,
+                    document_type=suffix,
+                    modified_at=row[6],
+                )
+            )
+            evidence_by_id[doc_id] = row
+
+        index = BM25Index(documents)
+        hits = index.search(query, limit=limit, filters=filters)
+        results: list[SearchEvidence] = []
+        for hit in hits:
+            row = evidence_by_id[hit.document.doc_id]
+            results.append(
+                SearchEvidence(
+                    asset_id=str(row[0]),
+                    asset_version_id=str(row[1]),
+                    root_id=str(row[2]),
+                    relative_path=row[3],
+                    source_sha256=str(row[4]).strip(),
+                    media_type=row[5],
+                    modified_at=row[6],
+                    score=hit.score,
+                    snippet=_snippet(hit.document.text, query),
+                )
+            )
+        return results
