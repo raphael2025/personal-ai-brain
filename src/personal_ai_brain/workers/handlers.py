@@ -8,10 +8,7 @@ from typing import Protocol
 
 from personal_ai_brain.extractors.models import ExtractionRequest
 from personal_ai_brain.extractors.text import ExtractionError, TextMarkdownExtractor
-from personal_ai_brain.ingestion.artifacts import (
-    ArtifactConflictError,
-    PostgresArtifactRepository,
-)
+from personal_ai_brain.ingestion.artifacts import ArtifactConflictError
 from personal_ai_brain.ingestion.models import JobLease, PermanentJobError
 from personal_ai_brain.workers.source_access import (
     AuthorizedSourceReader,
