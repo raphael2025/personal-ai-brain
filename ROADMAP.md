@@ -30,7 +30,8 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] Initial bounded UTF-8 text/Markdown/code extractor (PR #41)
 - [x] Bounded descriptor-relative no-follow source reader (PR #42)
 - [ ] Root-scoped worker authorization/mount mapping and PDF/DOCX/HTML/archive extractors
-- [ ] Versioned artifacts and rebuild manifests
+- [x] Initial versioned artifact provenance and fenced database publication (PR #44)
+- [ ] External content-addressed artifacts and rebuild manifests
 - [ ] Sandboxed extraction with resource limits
 - [x] Initial in-memory lexical BM25 retrieval baseline with root/type/time filters (PR #43)
 - [x] Reproducible synthetic benchmark with Recall@5/10, MRR, nDCG@10, citation precision, and latency reporting (PR #43)
