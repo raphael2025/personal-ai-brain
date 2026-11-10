@@ -191,10 +191,10 @@ BEGIN
        AND j.status = 'cancel_requested'
        AND j.lease_expires_at <= now();
 
-    UPDATE processing_jobs
+    UPDATE processing_jobs AS j
        SET status = 'cancelled', finished_at = now(), updated_at = now(),
            lease_owner_worker_id = NULL, lease_expires_at = NULL
-     WHERE status = 'cancel_requested' AND lease_expires_at <= now();
+     WHERE j.status = 'cancel_requested' AND j.lease_expires_at <= now();
 
     -- A final attempt whose lease expired cannot be claimed again.
     UPDATE job_attempts AS a
@@ -208,13 +208,13 @@ BEGIN
        AND j.lease_expires_at <= now()
        AND j.attempt_count >= j.max_attempts;
 
-    UPDATE processing_jobs
+    UPDATE processing_jobs AS j
        SET status = 'failed', finished_at = now(), updated_at = now(),
            last_error = 'final lease expired before completion',
            lease_owner_worker_id = NULL, lease_expires_at = NULL
-     WHERE status IN ('leased', 'running')
-       AND lease_expires_at <= now()
-       AND attempt_count >= max_attempts;
+     WHERE j.status IN ('leased', 'running')
+       AND j.lease_expires_at <= now()
+       AND j.attempt_count >= j.max_attempts;
 
     SELECT j.* INTO v_job
       FROM processing_jobs AS j
