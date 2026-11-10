@@ -35,6 +35,7 @@ The system is designed around four principles:
 - **[Asset Registry CLI 使用说明](docs/development/registry-service.md)**：数据库迁移、根目录登记、扫描命令及当前限制。
 - **[Durable Jobs 与 Worker Lease](docs/development/durable-jobs.md)**：任务幂等、能力匹配、租约、fencing、重试和取消；Worker runtime 仍在完善。
 - **[Extraction Foundation](docs/development/extraction.md)**：首个受限 UTF-8 文本/Markdown 提取器及当前安全边界。
+- **[Local Worker Operations](docs/development/worker-operations.md)**：Worker 注册、根目录授权、任务入队、挂载配置和本地运行。
 - [项目状态](PROJECT_STATUS.md) · [完整文档索引](docs/README.md) · [路线图](ROADMAP.md)
 
 ## Goals
@@ -81,6 +82,8 @@ The initial developer CLI is available. It requires PostgreSQL and a manually ap
     python -m pip install -e ".[postgres,dev]"
     read -rsp "PAB_DATABASE_URL: " PAB_DATABASE_URL; echo; export PAB_DATABASE_URL
     psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/postgres/migrations/0001_asset_registry.sql
+
+For the worker/extraction path, also apply migrations 0002–0004 in order. See [Local Worker Operations](docs/development/worker-operations.md) for registration, root grants, extraction enqueue, and worker execution.
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
     pab scan <root-uuid>
