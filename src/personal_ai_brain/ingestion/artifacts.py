@@ -133,7 +133,9 @@ class PostgresArtifactRepository:
                 (asset_version_id,),
             ).fetchone()
             if source is None or str(source[0]).strip() != source_sha256:
-                raise ValueError("artifact source digest does not match the immutable asset version")
+                raise ValueError(
+                    "artifact source digest does not match the immutable asset version"
+                )
 
             inserted = connection.execute(
                 """
