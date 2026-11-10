@@ -18,7 +18,6 @@ from personal_ai_brain.memory.models import (
     MemoryState,
 )
 
-
 _ALLOWED_TRANSITIONS = {
     MemoryState.CANDIDATE: {MemoryState.ACTIVE, MemoryState.REJECTED, MemoryState.ARCHIVED},
     MemoryState.ACTIVE: {MemoryState.STALE, MemoryState.CONFLICTED, MemoryState.ARCHIVED},
