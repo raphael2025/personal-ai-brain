@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any, Protocol
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from personal_ai_brain.ingestion.models import JobLease, JobSpec, LeaseLostError
 
@@ -100,13 +100,13 @@ class PostgresJobRepository:
                 )
                 """,
                 (
-                    __import__("uuid").uuid4(),
+                    uuid4(),
                     self._uuid(job.asset_version_id),
                     job.task_type,
                     job.semantic_version,
                     job.config_digest,
                     job.idempotency_key,
-                    json.dumps(job.payload, sort_keys=True, separators=(",", ":")),
+                    json.dumps(job.payload, sort_keys=True, separators=(",", ":"), allow_nan=False),
                     list(job.required_capabilities),
                     job.priority,
                     job.max_attempts,
@@ -124,6 +124,7 @@ class PostgresJobRepository:
             return None
         return JobLease(
             job_id=str(row[0]),
+            worker_id=str(worker_id),
             asset_version_id=str(row[1]),
             task_type=row[2],
             semantic_version=row[3],
@@ -153,10 +154,7 @@ class PostgresJobRepository:
 
     @staticmethod
     def _uuid_from_lease_worker(lease: JobLease) -> UUID:
-        worker_id = getattr(lease, "worker_id", None)
-        if worker_id is None:
-            raise ValueError("lease must carry its worker_id")
-        return UUID(str(worker_id))
+        return UUID(str(lease.worker_id))
 
     def complete(self, lease: JobLease) -> None:
         try:
