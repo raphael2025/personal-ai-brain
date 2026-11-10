@@ -16,6 +16,9 @@ if not DATABASE_URL:
 psycopg = pytest.importorskip("psycopg")
 from psycopg import sql  # noqa: E402
 
+from personal_ai_brain.evaluation.postgres_search import (  # noqa: E402
+    PostgresLexicalSearchRepository,
+)
 from personal_ai_brain.ingestion.artifacts import PostgresArtifactRepository  # noqa: E402
 from personal_ai_brain.ingestion.models import JobSpec  # noqa: E402
 from personal_ai_brain.ingestion.repository import PostgresJobRepository  # noqa: E402
@@ -145,6 +148,19 @@ def test_worker_extracts_only_authorized_source_and_persists_artifact(tmp_path: 
         assert artifact[6] == hashlib.sha256(source_content).hexdigest()
         assert artifact[7] == len(source_content)
         assert artifact[8] == "ready"
+
+        search = PostgresLexicalSearchRepository(connect)
+        results = search.search(
+            "local-only test fixture",
+            root_id=str(root_id),
+            document_type="md",
+        )
+        assert len(results) == 1
+        assert results[0].asset_id == str(asset_id)
+        assert results[0].asset_version_id == str(version_id)
+        assert results[0].relative_path == "notes.md"
+        assert results[0].source_sha256 == source_digest
+        assert "local-only" in results[0].snippet
     finally:
         connection.rollback()
         connection.close()
