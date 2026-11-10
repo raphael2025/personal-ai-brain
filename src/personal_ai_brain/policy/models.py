@@ -31,6 +31,15 @@ class PolicyAction(StrEnum):
     EGRESS = "egress"
 
 
+class PolicyPurpose(StrEnum):
+    ASSISTANT_ANSWER = "assistant_answer"
+    PERSONAL_SEARCH = "personal_search"
+    MEMORY_CONFIRMATION = "memory_confirmation"
+    LOCAL_EXTRACTION = "local_extraction"
+    EXTERNAL_MODEL_EGRESS = "external_model_egress"
+    ADMINISTRATION = "administration"
+
+
 class DecisionKind(StrEnum):
     ALLOW = "allow"
     DENY = "deny"
@@ -42,6 +51,7 @@ class DecisionReason(StrEnum):
     UNKNOWN_PRINCIPAL = "unknown_principal"
     PRINCIPAL_DISABLED = "principal_disabled"
     MISSING_PURPOSE = "missing_purpose"
+    UNKNOWN_PURPOSE = "unknown_purpose"
     INVALID_ACTION = "invalid_action"
     MISSING_RESOURCE = "missing_resource"
     PRINCIPAL_SCOPE_MISSING = "principal_scope_missing"
@@ -112,6 +122,11 @@ class PolicyResource:
 
     def __post_init__(self) -> None:
         _safe_text(self.resource_type, "resource_type", maximum=64)
+        if self.resource_type not in {
+            "storage_root", "asset", "asset_version", "artifact", "memory",
+            "search_result", "context_bundle",
+        }:
+            raise ValueError("resource_type is not a supported resource identifier")
         _uuid(self.resource_id, "resource_id")
         if self.root_id is not None:
             _uuid(self.root_id, "root_id")
@@ -139,8 +154,8 @@ class PolicyGrant:
             raise ValueError("actions must contain PolicyAction values")
         if not self.purposes:
             raise ValueError("purposes must not be empty")
-        for purpose in self.purposes:
-            _safe_text(purpose, "purpose", maximum=128)
+        if any(not isinstance(purpose, PolicyPurpose) for purpose in self.purposes):
+            raise ValueError("purposes must contain PolicyPurpose values")
         if not self.classifications or any(
             not isinstance(item, DataClassification) for item in self.classifications
         ):

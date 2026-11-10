@@ -47,6 +47,10 @@ CREATE TABLE policy_grants (
         cardinality(purposes) > 0
         AND array_position(purposes, '') IS NULL
         AND array_position(purposes, NULL) IS NULL
+        AND purposes <@ ARRAY[
+            'assistant_answer', 'personal_search', 'memory_confirmation',
+            'local_extraction', 'external_model_egress', 'administration'
+        ]::text[]
     ),
     CHECK (cardinality(classifications) > 0),
     CHECK (

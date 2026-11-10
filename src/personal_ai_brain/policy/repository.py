@@ -16,6 +16,7 @@ from personal_ai_brain.policy.models import (
     PolicyAction,
     PolicyDecision,
     PolicyGrant,
+    PolicyPurpose,
     Principal,
     PrincipalKind,
 )
@@ -169,7 +170,7 @@ class PostgresPolicyRepository:
                     UUID(grant.grant_id),
                     UUID(grant.principal_id),
                     sorted(item.value for item in grant.actions),
-                    sorted(grant.purposes),
+                    sorted(item.value for item in grant.purposes),
                     sorted(item.value for item in grant.classifications),
                     [UUID(item) for item in sorted(grant.resource_ids)],
                     [UUID(item) for item in sorted(grant.root_ids)],
@@ -248,7 +249,7 @@ class PostgresPolicyRepository:
                         grant_id=str(row[0]),
                         principal_id=str(row[1]),
                         actions=frozenset(PolicyAction(value) for value in row[2]),
-                        purposes=frozenset(row[3]),
+                        purposes=frozenset(PolicyPurpose(value) for value in row[3]),
                         classifications=frozenset(
                             DataClassification(value) for value in row[4]
                         ),
@@ -270,6 +271,14 @@ class PostgresPolicyRepository:
                     self._uuid_or_none(resource.resource_id) if resource else None
                 )
                 root_uuid = self._uuid_or_none(resource.root_id) if resource else None
+                try:
+                    action_value = PolicyAction(request.action).value
+                except (ValueError, TypeError):
+                    action_value = "invalid_action"
+                try:
+                    purpose_value = PolicyPurpose(request.purpose).value
+                except (ValueError, TypeError):
+                    purpose_value = None
                 connection.execute(
                     """
                     INSERT INTO policy_decisions (
@@ -281,13 +290,12 @@ class PostgresPolicyRepository:
                     (
                         UUID(request.request_id),
                         principal_uuid,
-                        request.action.value if isinstance(request.action, PolicyAction)
-                        else str(request.action),
+                        action_value,
                         resource.resource_type if resource else None,
                         resource_uuid,
                         root_uuid,
                         resource.classification.value if resource else None,
-                        request.purpose,
+                        purpose_value,
                         request.destination_provider_id,
                         decision.decision.value,
                         decision.reason.value,

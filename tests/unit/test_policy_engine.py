@@ -13,6 +13,7 @@ from personal_ai_brain.policy.models import (
     DecisionReason,
     PolicyAction,
     PolicyGrant,
+    PolicyPurpose,
     PolicyResource,
     Principal,
     PrincipalKind,
@@ -58,7 +59,7 @@ def request(
         "principal_id": principal.principal_id,
         "action": PolicyAction.READ_CONTENT,
         "resource": default_resource,
-        "purpose": "assistant_answer",
+        "purpose": PolicyPurpose.ASSISTANT_ANSWER,
         "now": datetime(2026, 1, 1, tzinfo=UTC),
     }
     values.update(overrides)
@@ -138,8 +139,11 @@ def test_scope_purpose_classification_and_resource_mismatches_deny() -> None:
     engine = PolicyEngine([principal], [grant], policy_version=1)
 
     assert engine.authorize(
-        request(principal, resource, purpose="training")
+        request(principal, resource, purpose=PolicyPurpose.PERSONAL_SEARCH)
     ).reason is DecisionReason.NO_MATCHING_GRANT
+    assert engine.authorize(
+        request(principal, resource, purpose="raw prompt text must not be a purpose")
+    ).reason is DecisionReason.UNKNOWN_PURPOSE
     assert engine.authorize(
         request(
             principal,

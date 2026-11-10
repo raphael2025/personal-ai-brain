@@ -23,6 +23,7 @@ from personal_ai_brain.policy.models import (  # noqa: E402
     DecisionReason,
     PolicyAction,
     PolicyGrant,
+    PolicyPurpose,
     PolicyResource,
     Principal,
     PrincipalKind,
@@ -73,7 +74,7 @@ def test_policy_repository_versions_grants_and_revocation_blocks_next_request(po
         grant_id=str(uuid4()),
         principal_id=principal.principal_id,
         actions=frozenset({PolicyAction.READ_CONTENT}),
-        purposes=frozenset({"assistant_answer"}),
+        purposes=frozenset({PolicyPurpose.ASSISTANT_ANSWER}),
         classifications=frozenset({DataClassification.PERSONAL}),
         resource_ids=frozenset({resource_id}),
     )
@@ -85,7 +86,7 @@ def test_policy_repository_versions_grants_and_revocation_blocks_next_request(po
             principal_id=principal.principal_id,
             action=PolicyAction.READ_CONTENT,
             resource=resource,
-            purpose="assistant_answer",
+            purpose=PolicyPurpose.ASSISTANT_ANSWER,
         )
     )
     assert allowed.decision is DecisionKind.ALLOW
@@ -125,7 +126,7 @@ def test_unknown_principal_is_audited_as_denied_without_content(policy_environme
             resource=PolicyResource(
                 "asset", str(uuid4()), DataClassification.SENSITIVE, str(uuid4())
             ),
-            purpose="personal_search",
+            purpose=PolicyPurpose.PERSONAL_SEARCH,
         )
     )
     assert decision.reason is DecisionReason.UNKNOWN_PRINCIPAL

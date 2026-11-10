@@ -14,7 +14,7 @@ Authorization requires all of the following to match:
 
 Unknown principals, disabled principals, missing purposes/resources, missing scopes, expired/revoked grants, provider mismatches, and evaluator errors deny. There is no implicit owner bypass, wildcard resource grant, or default cloud permission.
 
-Principal scopes are only one gate; they do not independently authorize access. A matching active grant is also required. Resource and root identifiers are opaque UUIDs. A provider-specific egress grant contains only the egress action and one provider identifier.
+Principal scopes are only one gate; they do not independently authorize access. A matching active grant is also required. Resource and root identifiers are opaque UUIDs. A provider-specific egress grant contains only the egress action and one provider identifier. Purposes come from a fixed enum (assistant answer, personal search, memory confirmation, local extraction, external model egress, administration); arbitrary prompt text cannot be used as a purpose.
 
 ## Versioning and revocation
 
@@ -24,7 +24,7 @@ This serializes a revocation against authorization: an in-flight decision comple
 
 ## Audit and untrusted content
 
-Policy decision and administrative audit tables are append-only. Decision rows contain only request/principal/action/resource/purpose/provider identifiers, allow/deny, reason code, matched grant ID, policy version, and time. They do not store document bodies, credentials, or prompt text.
+Policy decision and administrative audit tables are append-only. Decision rows contain only request/principal/action/resource/purpose/provider identifiers, allow/deny, reason code, matched grant ID, policy version, and time. Unknown action/purpose strings are normalized to safe fixed values/null before audit. They do not store document bodies, credentials, or prompt text.
 
 Retrieved content is not an input to the policy evaluator. Files, OCR, code comments, web pages, tool outputs, and model outputs cannot grant scopes or modify policy. The repository accepts structured authorization metadata only.
 

@@ -11,6 +11,7 @@ from personal_ai_brain.policy.models import (
     PolicyAction,
     PolicyDecision,
     PolicyGrant,
+    PolicyPurpose,
     Principal,
 )
 
@@ -64,8 +65,14 @@ class PolicyEngine:
             action = PolicyAction(request.action)
         except (ValueError, TypeError):
             return self._deny(DecisionReason.INVALID_ACTION)
-        if request.purpose is None or not request.purpose.strip():
+        if request.purpose is None or (
+            isinstance(request.purpose, str) and not request.purpose.strip()
+        ):
             return self._deny(DecisionReason.MISSING_PURPOSE)
+        try:
+            purpose = PolicyPurpose(request.purpose)
+        except (ValueError, TypeError):
+            return self._deny(DecisionReason.UNKNOWN_PURPOSE)
         if request.resource is None:
             return self._deny(DecisionReason.MISSING_RESOURCE)
         if action is PolicyAction.EGRESS and not request.destination_provider_id:
@@ -99,7 +106,7 @@ class PolicyEngine:
             if grant.expires_at is not None and request.now >= grant.expires_at:
                 saw_expired = True
                 continue
-            if request.purpose not in grant.purposes:
+            if purpose not in grant.purposes:
                 continue
             if request.resource.classification not in grant.classifications:
                 continue
