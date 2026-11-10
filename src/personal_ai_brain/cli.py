@@ -6,6 +6,7 @@ import argparse
 import os
 import signal
 import sys
+from datetime import datetime
 from pathlib import Path
 from threading import Event
 from uuid import UUID, uuid4
@@ -14,6 +15,7 @@ from personal_ai_brain.assets.models import StorageKind, StorageRoot
 from personal_ai_brain.assets.operations import PostgresAssetRegistryOperations
 from personal_ai_brain.assets.scanner import ScanStatus
 from personal_ai_brain.assets.service import AssetRegistryService
+from personal_ai_brain.evaluation.postgres_search import PostgresLexicalSearchRepository
 from personal_ai_brain.extractors.text import TextMarkdownExtractor
 from personal_ai_brain.ingestion.artifacts import PostgresArtifactRepository
 from personal_ai_brain.ingestion.models import JobSpec
@@ -150,7 +152,25 @@ def _parser() -> argparse.ArgumentParser:
         help="claim and process at most one compatible job, then exit",
     )
 
+    search = commands.add_parser("search", help="search persisted extracted text with BM25")
+    search.add_argument("query")
+    search.add_argument("--root-id")
+    search.add_argument("--document-type")
+    search.add_argument("--modified-after", type=_parse_datetime)
+    search.add_argument("--modified-before", type=_parse_datetime)
+    search.add_argument("--limit", type=int, default=10)
+
     return parser
+
+
+def _parse_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("datetime must be ISO-8601 with timezone") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise argparse.ArgumentTypeError("datetime must include a timezone offset")
+    return parsed
 
 
 def _print_rows(rows: list[tuple[object, ...]]) -> None:
@@ -244,6 +264,26 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "worker" and args.worker_command == "run":
             return _run_worker(args, connection_factory, jobs)
+
+        if args.command == "search":
+            search_repository = PostgresLexicalSearchRepository(connection_factory)
+            results = search_repository.search(
+                args.query,
+                root_id=args.root_id,
+                document_type=args.document_type,
+                modified_after=args.modified_after,
+                modified_before=args.modified_before,
+                limit=args.limit,
+            )
+            for result in results:
+                snippet = result.snippet.replace("\\t", " ").replace("\\n", " ")
+                print(
+                    f"{result.score:.6f}\\t{result.asset_id}\\t{result.asset_version_id}\\t"
+                    f"{result.root_id}\\t{result.relative_path}\\t{result.source_sha256}\\t{snippet}"
+                )
+            if not results:
+                print("no results")
+            return 0
 
         if args.command == "extract" and args.extract_command == "enqueue":
             root_id = str(UUID(args.root_id))
