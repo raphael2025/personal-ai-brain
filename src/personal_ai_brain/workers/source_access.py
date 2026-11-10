@@ -223,7 +223,7 @@ class PostgresWorkerSourceAccessRepository:
                  ORDER BY l.relative_path, l.id
                  LIMIT 1
                 """,
-                (job_uuid, version_uuid, lease_generation, root_uuid, worker_uuid),
+                (job_uuid, version_uuid, lease_generation, root_uuid, version_uuid, worker_uuid),
             ).fetchone()
         if row is None:
             raise SourceAccessDeniedError(
