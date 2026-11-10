@@ -6,7 +6,6 @@ from collections.abc import Iterable
 
 from personal_ai_brain.policy.models import (
     AuthorizationRequest,
-    DataClassification,
     DecisionKind,
     DecisionReason,
     PolicyAction,

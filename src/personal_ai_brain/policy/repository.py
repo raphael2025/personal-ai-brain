@@ -16,7 +16,6 @@ from personal_ai_brain.policy.models import (
     PolicyAction,
     PolicyDecision,
     PolicyGrant,
-    PolicyResource,
     Principal,
     PrincipalKind,
 )
@@ -144,8 +143,11 @@ class PostgresPolicyRepository:
                 return False
             version = self._bump_policy_version(connection)
             self._admin_event(
-                connection, actor=actor, action="principal_enabled" if enabled else "principal_disabled",
-                target_type="principal", target_id=principal_id,
+                connection,
+                actor=actor,
+                action="principal_enabled" if enabled else "principal_disabled",
+                target_type="principal",
+                target_id=principal_id,
                 policy_version=version,
             )
             return True

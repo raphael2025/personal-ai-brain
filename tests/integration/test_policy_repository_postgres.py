@@ -105,7 +105,11 @@ def test_policy_repository_versions_grants_and_revocation_blocks_next_request(po
     assert denied.policy_version == 4
 
     decisions = connection.execute(
-        "SELECT decision, reason_code, policy_version FROM policy_decisions ORDER BY occurred_at, request_id"
+        """
+        SELECT decision, reason_code, policy_version
+          FROM policy_decisions
+         ORDER BY occurred_at, request_id
+        """
     ).fetchall()
     assert {row[0] for row in decisions} == {"allow", "deny"}
     assert {row[2] for row in decisions} == {3, 4}
