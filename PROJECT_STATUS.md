@@ -24,6 +24,7 @@ This page distinguishes merged and validated capabilities from planned architect
 | CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
 | Secret scanning | Implemented | PR #34 passed Gitleaks |
 | Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions and Python PostgresJobRepository + pull-based WorkerRuntime; no worker CLI, authenticated source access, or artifact publication yet |
+| Text/Markdown extraction adapter | Initial implementation | UTF-8, 16 MiB bound, source SHA-256 verification, explicit malformed-input outcomes; not yet wired to source reader, artifact store, or WorkerRuntime |
 | Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
 
 ## Not implemented yet
@@ -31,7 +32,7 @@ This page distinguishes merged and validated capabilities from planned architect
 - Worker CLI/process supervisor, graceful signal/drain controls, authenticated root-scoped source access, artifact staging/publication, and operational recovery
 - Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
-- Document, image, audio, video, archive, and code extraction pipelines
+- Safe source reader, PDF/DOCX/HTML/archive/image/audio/video extractors, and end-to-end artifact pipeline
 - OCR, transcription, embeddings, BM25, vector retrieval, and evaluation corpus
 - Memory lifecycle, activation scoring, and progressive L0/L1/L2 runtime
 - Knowledge graph, claim/evidence model, and conflict resolution
