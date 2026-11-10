@@ -654,13 +654,19 @@ class PostgresAssetRegistryRepository:
         scan_uuid = self._uuid(scan_id)
         with self._connection() as connection:
             scan = connection.execute(
-                "SELECT status FROM scan_runs WHERE id = %s FOR UPDATE",
+                "SELECT storage_root_id, status FROM scan_runs WHERE id = %s FOR UPDATE",
                 (scan_uuid,),
             ).fetchone()
             if scan is None:
                 raise RegistryNotFoundError(f"scan not found: {scan_id}")
-            if scan[0] != ScanStatus.COMPLETE.value:
+            if scan[1] != ScanStatus.COMPLETE.value:
                 raise ValueError("reconciliation requires a COMPLETE scan")
+
+            # Serialize reconciliation with root normalizer migration and scan start.
+            connection.execute(
+                "SELECT id FROM storage_roots WHERE id = %s FOR UPDATE",
+                (scan[0],),
+            ).fetchone()
 
             changed = int(
                 connection.execute(
