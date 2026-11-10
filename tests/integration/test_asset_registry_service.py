@@ -84,6 +84,7 @@ def test_scan_registers_asset_and_new_content_version(db, tmp_path: Path) -> Non
 
     first = service.scan_root(root.root_id)
     assert first.result.status is ScanStatus.COMPLETE
+    assert first.reconciliation_events == 0
 
     counts = db.execute(
         """
@@ -180,6 +181,14 @@ def test_complete_empty_scan_marks_previous_location_missing(
     availability = db.execute(
         "SELECT availability FROM asset_locations"
     ).fetchone()[0]
+    assert availability == "available"
+
+    # A complete scan is only a proposal until an operator explicitly applies it.
+    changed = repository.reconcile_scan(empty.scan_id, actor="integration-test")
+    assert changed == 1
+    availability = db.execute(
+        "SELECT availability FROM asset_locations"
+    ).fetchone()[0]
     assert availability == "missing"
     repeated = repository.finish_scan(empty.scan_id, [], status=ScanStatus.COMPLETE)
     assert repeated == 1
@@ -193,6 +202,18 @@ def test_complete_empty_scan_marks_previous_location_missing(
         repository.finish_scan(
             empty.scan_id, [conflicting], status=ScanStatus.COMPLETE
         )
+
+
+def test_reconciliation_requires_complete_scan_and_actor(db, tmp_path: Path) -> None:
+    repository = _repository(db)
+    root = _enroll(repository, tmp_path)
+    scan_id = repository.start_scan(root.root_id, scanner_version="test")
+    repository.finish_scan(scan_id, [], status=ScanStatus.PARTIAL)
+
+    with pytest.raises(ValueError, match="COMPLETE"):
+        repository.reconcile_scan(scan_id, actor="integration-test")
+    with pytest.raises(ValueError, match="actor"):
+        repository.reconcile_scan(scan_id, actor="")
 
 
 def test_network_root_requires_explicit_local_mount_path(db, tmp_path: Path) -> None:
