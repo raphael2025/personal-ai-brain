@@ -44,7 +44,7 @@ def make_grant(principal: Principal, resource: PolicyResource, **overrides) -> P
         "grant_id": str(uuid4()),
         "principal_id": principal.principal_id,
         "actions": frozenset({PolicyAction.READ_CONTENT}),
-        "purposes": frozenset({"assistant_answer"}),
+        "purposes": frozenset({PolicyPurpose.ASSISTANT_ANSWER}),
         "classifications": frozenset({DataClassification.PERSONAL}),
         "resource_ids": frozenset({resource.resource_id}),
     }

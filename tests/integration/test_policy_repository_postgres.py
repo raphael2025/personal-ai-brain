@@ -98,7 +98,7 @@ def test_policy_repository_versions_grants_and_revocation_blocks_next_request(po
             principal_id=principal.principal_id,
             action=PolicyAction.READ_CONTENT,
             resource=resource,
-            purpose="assistant_answer",
+            purpose=PolicyPurpose.ASSISTANT_ANSWER,
         )
     )
     assert denied.decision is DecisionKind.DENY
