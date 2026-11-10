@@ -37,6 +37,23 @@ def test_worker_register_and_root_grant_commands_parse():
     assert revoke.worker_command == "revoke-root"
 
 
+def test_search_command_parses_filters_and_timezone_aware_dates():
+    root_id = str(uuid4())
+    args = _parser().parse_args(
+        [
+            "search", "project notes", "--root-id", root_id,
+            "--document-type", "MD", "--modified-after", "2025-01-01T00:00:00Z",
+            "--limit", "5",
+        ]
+    )
+
+    assert args.command == "search"
+    assert args.root_id == root_id
+    assert args.document_type == "MD"
+    assert args.modified_after.tzinfo is not None
+    assert args.limit == 5
+
+
 def test_worker_run_and_extract_enqueue_commands_parse(tmp_path: Path):
     worker_id = str(uuid4())
     root_id = str(uuid4())
