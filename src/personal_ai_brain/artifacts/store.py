@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -69,7 +70,7 @@ class LocalArtifactStore:
         fd = os.open(name, flags, dir_fd=directory_fd)
         try:
             metadata = os.fstat(fd)
-            if not os.path.stat.S_ISREG(metadata.st_mode):
+            if not stat.S_ISREG(metadata.st_mode):
                 raise ArtifactIntegrityError("artifact object is not a regular file")
             if metadata.st_size > max_bytes:
                 raise ArtifactIntegrityError("artifact object exceeds read limit")
