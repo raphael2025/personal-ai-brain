@@ -100,9 +100,7 @@ def test_source_access_failures_are_permanent(error):
 
 
 def test_unsupported_source_type_is_permanent():
-    reader = FakeSourceReader(b"binary")
     artifacts = FakeArtifactRepository()
-    handler = TextExtractionHandler(reader, artifacts)
     lease = make_lease()
 
     class UnsupportedReader(FakeSourceReader):
@@ -135,6 +133,16 @@ def test_invalid_utf8_is_permanent():
         handler(make_lease())
 
     assert artifacts.calls == []
+
+
+def test_config_digest_mismatch_is_permanent():
+    handler = TextExtractionHandler(
+        FakeSourceReader(b"# Notes"), FakeArtifactRepository()
+    )
+    lease = make_lease("d" * 64)
+
+    with pytest.raises(PermanentJobError, match="ExtractorConfigMismatch"):
+        handler(lease)
 
 
 def test_config_digest_is_stable_and_matches_default_extractor():
