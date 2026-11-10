@@ -28,7 +28,8 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 
 ## Phase 2 — Extraction, provenance, and search (P1)
 - [x] Initial bounded UTF-8 text/Markdown/code extractor (PR #41)
-- [ ] Root-scoped source reader and PDF/DOCX/HTML/archive extractors
+- [x] Bounded descriptor-relative no-follow source reader (PR #42)
+- [ ] Root-scoped worker authorization/mount mapping and PDF/DOCX/HTML/archive extractors
 - [ ] Versioned artifacts and rebuild manifests
 - [ ] Sandboxed extraction with resource limits
 - [ ] Lexical BM25 retrieval baseline
