@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -27,7 +27,7 @@ def test_loads_mount_map_and_normalizes_root_ids(tmp_path: Path):
     result = load_worker_mount_map(config, expected_worker_id=worker_id)
 
     assert result.worker_id == worker_id
-    assert result.mounts[str(__import__("uuid").UUID(root_id))] == mount
+    assert result.mounts[str(UUID(root_id))] == mount
 
 
 def test_rejects_relative_mount_paths():
