@@ -276,10 +276,11 @@ def main(argv: list[str] | None = None) -> int:
                 limit=args.limit,
             )
             for result in results:
-                snippet = result.snippet.replace("\\t", " ").replace("\\n", " ")
+                snippet = result.snippet.replace("\t", " ").replace("\n", " ")
                 print(
                     f"{result.score:.6f}\\t{result.asset_id}\\t{result.asset_version_id}\\t"
-                    f"{result.root_id}\\t{result.relative_path}\\t{result.source_sha256}\\t{snippet}"
+                    f"{result.root_id}\\t{result.relative_path}\\t{result.source_sha256}\\t"
+                    f"{snippet}"
                 )
             if not results:
                 print("no results")
