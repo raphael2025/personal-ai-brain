@@ -40,6 +40,7 @@ CREATE TABLE processing_jobs (
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CHECK (array_position(required_capabilities, NULL) IS NULL),
+    CHECK (attempt_count <= max_attempts),
     CHECK (
         (status IN ('leased', 'running', 'cancel_requested')
             AND lease_owner_worker_id IS NOT NULL AND lease_expires_at IS NOT NULL)
@@ -179,6 +180,42 @@ BEGIN
         RAISE EXCEPTION 'worker is unknown or disabled';
     END IF;
 
+    -- Expired cancellation requests become terminal instead of remaining stuck.
+    UPDATE job_attempts AS a
+       SET status = 'cancelled', finished_at = now(),
+           error_summary = 'cancellation acknowledged by lease expiry'
+      FROM processing_jobs AS j
+     WHERE a.job_id = j.id
+       AND a.lease_generation = j.lease_generation
+       AND a.status = 'running'
+       AND j.status = 'cancel_requested'
+       AND j.lease_expires_at <= now();
+
+    UPDATE processing_jobs
+       SET status = 'cancelled', finished_at = now(), updated_at = now(),
+           lease_owner_worker_id = NULL, lease_expires_at = NULL
+     WHERE status = 'cancel_requested' AND lease_expires_at <= now();
+
+    -- A final attempt whose lease expired cannot be claimed again.
+    UPDATE job_attempts AS a
+       SET status = 'failed', finished_at = now(),
+           error_summary = 'final lease expired before completion'
+      FROM processing_jobs AS j
+     WHERE a.job_id = j.id
+       AND a.lease_generation = j.lease_generation
+       AND a.status = 'running'
+       AND j.status IN ('leased', 'running')
+       AND j.lease_expires_at <= now()
+       AND j.attempt_count >= j.max_attempts;
+
+    UPDATE processing_jobs
+       SET status = 'failed', finished_at = now(), updated_at = now(),
+           last_error = 'final lease expired before completion',
+           lease_owner_worker_id = NULL, lease_expires_at = NULL
+     WHERE status IN ('leased', 'running')
+       AND lease_expires_at <= now()
+       AND attempt_count >= max_attempts;
+
     SELECT j.* INTO v_job
       FROM processing_jobs AS j
      WHERE j.available_at <= now()
@@ -189,8 +226,8 @@ BEGIN
        )
        AND j.required_capabilities <@ v_worker.capabilities
      ORDER BY j.priority DESC, j.available_at, j.created_at, j.id
-     FOR UPDATE SKIP LOCKED
-     LIMIT 1;
+     LIMIT 1
+     FOR UPDATE SKIP LOCKED;
 
     IF NOT FOUND THEN
         RETURN;
