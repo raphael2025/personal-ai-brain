@@ -48,7 +48,10 @@ def memory_environment():
 
         root_id, asset_id, version_id = uuid4(), uuid4(), uuid4()
         connection.execute(
-            "INSERT INTO storage_roots (id, display_name, uri, kind) VALUES (%s, 'Memory test', 'file:///tmp/memory-test', 'local')",
+            """
+            INSERT INTO storage_roots (id, display_name, uri, kind)
+            VALUES (%s, 'Memory test', 'file:///tmp/memory-test', 'local')
+            """,
             (root_id,),
         )
         connection.execute("INSERT INTO assets (id) VALUES (%s)", (asset_id,))
@@ -62,18 +65,26 @@ def memory_environment():
         connection.rollback()
         connection.close()
         with psycopg.connect(DATABASE_URL) as cleanup:
-            cleanup.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema_name)))
+            cleanup.execute(
+                sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(schema_name))
+            )
 
 
 def test_inferred_memory_requires_explicit_confirmation_and_audits_it(memory_environment):
     repository, connection, _ = memory_environment
     memory_id = repository.create(
-        MemoryDraft("User may prefer concise reports", MemoryOrigin.MODEL_INFERRED, confidence=0.62),
+        MemoryDraft(
+            "User may prefer concise reports",
+            MemoryOrigin.MODEL_INFERRED,
+            confidence=0.62,
+        ),
         actor="local-model",
         reason="candidate extracted from repeated interactions",
     )
     with pytest.raises(InvalidMemoryTransition, match="explicit confirmation"):
-        repository.transition(memory_id, MemoryState.ACTIVE, actor="operator", reason="try activate")
+        repository.transition(
+            memory_id, MemoryState.ACTIVE, actor="operator", reason="try activate"
+        )
     candidate = repository.get(memory_id)
     assert candidate.origin is MemoryOrigin.MODEL_INFERRED
     assert candidate.state is MemoryState.CANDIDATE
@@ -84,7 +95,11 @@ def test_inferred_memory_requires_explicit_confirmation_and_audits_it(memory_env
     assert active.state is MemoryState.ACTIVE
     assert active.confirmed_by == "user"
     confirmed_event = connection.execute(
-        "SELECT previous_origin, new_origin, previous_state, new_state FROM memory_state_events WHERE memory_id = %s AND action = 'confirmed'",
+        """
+        SELECT previous_origin, new_origin, previous_state, new_state
+          FROM memory_state_events
+         WHERE memory_id = %s AND action = 'confirmed'
+        """,
         (memory_id,),
     ).fetchone()
     assert confirmed_event == ("model_inferred", "user_confirmed", "candidate", "active")

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+import hashlib
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -36,7 +36,9 @@ _ALLOWED_TRANSITIONS = {
 class PostgresMemoryRepository:
     """Stores memory state and append-only transition evidence in one transaction."""
 
-    def __init__(self, connection_factory: Callable[[], Any], *, close_connections: bool = True) -> None:
+    def __init__(
+        self, connection_factory: Callable[[], Any], *, close_connections: bool = True
+    ) -> None:
         self._connect = connection_factory
         self._close_connections = close_connections
 
@@ -89,9 +91,14 @@ class PostgresMemoryRepository:
                         memory_id, asset_version_id, artifact_id, locator
                     ) VALUES (%s, %s, %s, %s)
                     """,
-                    (memory_id, self._uuid(evidence.asset_version_id, "asset_version_id"),
-                     self._uuid(evidence.artifact_id, "artifact_id") if evidence.artifact_id else None,
-                     evidence.locator),
+                    (
+                        memory_id,
+                        self._uuid(evidence.asset_version_id, "asset_version_id"),
+                        self._uuid(evidence.artifact_id, "artifact_id")
+                        if evidence.artifact_id
+                        else None,
+                        evidence.locator,
+                    ),
                 )
             connection.execute(
                 """
@@ -122,13 +129,17 @@ class PostgresMemoryRepository:
                     f"transition {previous_state.value} -> {to_state.value} is not allowed"
                 )
             if origin is MemoryOrigin.MODEL_INFERRED and to_state is MemoryState.ACTIVE:
-                raise InvalidMemoryTransition("model-inferred memory requires explicit confirmation")
+                raise InvalidMemoryTransition(
+                    "model-inferred memory requires explicit confirmation"
+                )
             if origin is MemoryOrigin.SOURCE_DERIVED and to_state is MemoryState.ACTIVE:
                 evidence = connection.execute(
                     "SELECT 1 FROM memory_evidence WHERE memory_id = %s LIMIT 1", (memory_uuid,)
                 ).fetchone()
                 if evidence is None:
-                    raise InvalidMemoryTransition("source-derived memory requires evidence to activate")
+                    raise InvalidMemoryTransition(
+                        "source-derived memory requires evidence to activate"
+                    )
             connection.execute(
                 "UPDATE memories SET state = %s, updated_at = now() WHERE id = %s",
                 (to_state.value, memory_uuid),
@@ -157,7 +168,9 @@ class PostgresMemoryRepository:
                 raise MemoryNotFoundError(f"memory not found: {memory_id}")
             origin, previous_state = MemoryOrigin(row[0]), MemoryState(row[1])
             if origin not in {MemoryOrigin.MODEL_INFERRED, MemoryOrigin.SOURCE_DERIVED}:
-                raise InvalidMemoryTransition("only inferred or source-derived candidates need confirmation")
+                raise InvalidMemoryTransition(
+                    "only inferred or source-derived candidates need confirmation"
+                )
             if previous_state is not MemoryState.CANDIDATE:
                 raise InvalidMemoryTransition("only candidate memories can be confirmed")
             if origin is MemoryOrigin.SOURCE_DERIVED:
@@ -165,7 +178,9 @@ class PostgresMemoryRepository:
                     "SELECT 1 FROM memory_evidence WHERE memory_id = %s LIMIT 1", (memory_uuid,)
                 ).fetchone()
                 if evidence is None:
-                    raise InvalidMemoryTransition("source-derived memory requires evidence to confirm")
+                    raise InvalidMemoryTransition(
+                        "source-derived memory requires evidence to confirm"
+                    )
             connection.execute(
                 """
                 UPDATE memories

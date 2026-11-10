@@ -41,7 +41,11 @@ class MemoryEvidence:
                 UUID(value)
             except (ValueError, TypeError, AttributeError) as exc:
                 raise ValueError(f"{name} must be a UUID string") from exc
-        if not isinstance(self.locator, str) or not self.locator.strip() or len(self.locator) > 1000:
+        if (
+            not isinstance(self.locator, str)
+            or not self.locator.strip()
+            or len(self.locator) > 1000
+        ):
             raise ValueError("locator must be non-empty and at most 1000 characters")
         if any(ord(character) < 0x20 and character not in "\t\n" for character in self.locator):
             raise ValueError("locator must not contain control characters")
@@ -69,8 +73,13 @@ class MemoryDraft:
         if not isinstance(self.state, MemoryState):
             raise ValueError("state must be a MemoryState value")
         if self.origin is MemoryOrigin.USER_CONFIRMED:
-            raise ValueError("user-confirmed memories must be created through explicit confirmation")
-        if self.origin in {MemoryOrigin.MODEL_INFERRED, MemoryOrigin.SOURCE_DERIVED} and self.state is not MemoryState.CANDIDATE:
+            raise ValueError(
+                "user-confirmed memories must be created through explicit confirmation"
+            )
+        if (
+            self.origin in {MemoryOrigin.MODEL_INFERRED, MemoryOrigin.SOURCE_DERIVED}
+            and self.state is not MemoryState.CANDIDATE
+        ):
             raise ValueError("inferred and source-derived memories must start as candidates")
         if self.origin is MemoryOrigin.SOURCE_DERIVED and not self.evidence:
             raise ValueError("source-derived memories require at least one evidence reference")
