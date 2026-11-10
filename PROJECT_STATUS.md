@@ -24,7 +24,8 @@ This page distinguishes merged and validated capabilities from planned architect
 | CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
 | Secret scanning | Implemented | PR #34 passed Gitleaks |
 | Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions and Python PostgresJobRepository + pull-based WorkerRuntime; no worker CLI, authenticated source access, or artifact publication yet |
-| Text/Markdown extraction adapter | Initial implementation | UTF-8, 16 MiB bound, source SHA-256 verification, explicit malformed-input outcomes; not yet wired to source reader, artifact store, or WorkerRuntime |
+| Text/Markdown extraction adapter | Initial implementation | UTF-8, 16 MiB bound, source SHA-256 verification, explicit malformed-input outcomes; not yet wired to artifact store or WorkerRuntime |
+| BM25 lexical retrieval and synthetic benchmark | Initial implementation | Dependency-free in-memory BM25, metadata filters, deterministic ranking, five labelled queries over four synthetic documents; not a persistent or production search service |
 | Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
 
 ## Not implemented yet
@@ -33,7 +34,7 @@ This page distinguishes merged and validated capabilities from planned architect
 - Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
 - PDF/DOCX/HTML/archive/image/audio/video extractors, authorized worker source mapping, and end-to-end artifact pipeline
-- OCR, transcription, embeddings, BM25, vector retrieval, and evaluation corpus
+- OCR, transcription, embeddings, persistent/chunk-level retrieval, vector retrieval, and a larger labelled evaluation corpus
 - Memory lifecycle, activation scoring, and progressive L0/L1/L2 runtime
 - Knowledge graph, claim/evidence model, and conflict resolution
 - Context planner, token budgeting, ContextBundle API, and MCP
@@ -58,6 +59,12 @@ Set PAB_DATABASE_URL, apply the SQL migration manually, then use:
     pab reconcile apply <scan-uuid> --actor operator-name
 
 SMB/NFS roots require an explicit local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for details and limitations.
+
+Run the synthetic lexical retrieval benchmark (no database required):
+
+    python -m personal_ai_brain.evaluation.benchmark evaluation/datasets/synthetic-v1 --output benchmark-results/bm25-synthetic-v1.json
+
+See [BM25 Baseline](docs/research/bm25-baseline.md).
 
 ## Security warning
 
