@@ -24,9 +24,9 @@ Acceptance: malformed/adversarial synthetic corpus; unsupported types explicitly
 
 ## D — Search and Evaluation (P1) — [Issue #23](https://github.com/raphael2025/personal-ai-brain/issues/23); technology review: [evaluation report](../research/technology-evaluation-2026-11.md)
 
-Build labelled synthetic query corpus, lexical BM25 baseline, root/type/time filters, optional vector channel, hybrid rank fusion, evidence spans/citations, ranking regression tests.
+Initial baseline merged in PR #43: dependency-free in-memory BM25, Unicode tokenization, deterministic tie-breaking, root/type/time filters, and a reproducible synthetic benchmark. Remaining: expand the small four-document/five-question corpus, integrate persisted chunks and immutable source-version provenance, add evidence spans/citations, then compare optional vector/hybrid channels against the lexical baseline.
 
-Acceptance: report Recall@5/10, MRR, nDCG@10, citation precision, P50/P95 latency with dataset/hardware/versions/config. Compare every ranker against lexical baseline; no unmeasured quality claims.
+Acceptance: report Recall@5/10, MRR, nDCG@10, citation precision, P50/P95 latency with dataset/hardware/versions/config. The initial synthetic smoke benchmark is implemented; production evaluation remains blocked on a larger labelled corpus and persistent chunk/version provenance. Compare every ranker against lexical baseline; no unmeasured quality claims.
 
 ## E — Knowledge and Memory (P2) — [Issue #24](https://github.com/raphael2025/personal-ai-brain/issues/24)
 
