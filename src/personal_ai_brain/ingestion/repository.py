@@ -22,6 +22,20 @@ class JobRepository(Protocol):
 
     def heartbeat(self, lease: JobLease, *, lease_seconds: int = 60) -> None: ...
 
+    def stage_artifact(
+        self,
+        lease: JobLease,
+        *,
+        artifact_type: str,
+        processor_name: str,
+        processor_version: str,
+        output_schema_version: str,
+        config_digest: str,
+        artifact_uri: str,
+        content_sha256: str,
+        size_bytes: int,
+    ) -> str: ...
+
     def complete(self, lease: JobLease) -> None: ...
 
     def fail(self, lease: JobLease, error: str, *, retryable: bool = True) -> str: ...
@@ -157,6 +171,50 @@ class PostgresJobRepository:
     @staticmethod
     def _uuid_from_lease_worker(lease: JobLease) -> UUID:
         return UUID(str(lease.worker_id))
+
+    def stage_artifact(
+        self,
+        lease: JobLease,
+        *,
+        artifact_type: str,
+        processor_name: str,
+        processor_version: str,
+        output_schema_version: str,
+        config_digest: str,
+        artifact_uri: str,
+        content_sha256: str,
+        size_bytes: int,
+    ) -> str:
+        artifact_id = uuid4()
+        try:
+            with self._connection() as connection:
+                row = connection.execute(
+                    """
+                    SELECT stage_processing_artifact(
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                    """,
+                    (
+                        artifact_id,
+                        self._uuid(lease.job_id),
+                        self._uuid(lease.worker_id),
+                        lease.generation,
+                        self._uuid(lease.asset_version_id),
+                        artifact_type,
+                        processor_name,
+                        processor_version,
+                        output_schema_version,
+                        config_digest,
+                        artifact_uri,
+                        content_sha256,
+                        size_bytes,
+                    ),
+                ).fetchone()
+        except Exception as exc:
+            if self._lease_lost(exc):
+                raise LeaseLostError("worker lease is no longer current") from exc
+            raise
+        return str(row[0])
 
     def complete(self, lease: JobLease) -> None:
         try:
