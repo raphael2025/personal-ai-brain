@@ -13,7 +13,7 @@ Allowed transitions:
 
 | From | To |
 |---|---|
-| candidate | rejected, archived |
+| candidate | active (user-authored only), rejected, archived |
 | active | stale, conflicted, archived |
 | stale | active, conflicted, rejected, archived |
 | conflicted | active, stale, rejected, archived |
