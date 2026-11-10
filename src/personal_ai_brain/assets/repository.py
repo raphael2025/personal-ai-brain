@@ -7,8 +7,8 @@ psycopg only when PostgreSQL persistence is selected.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
 import json
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Protocol
