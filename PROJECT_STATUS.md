@@ -23,12 +23,12 @@ This page distinguishes merged and validated capabilities from planned architect
 | CI | Implemented | Python 3.11–3.13; PR #34 passed all matrix jobs |
 | CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
 | Secret scanning | Implemented | PR #34 passed Gitleaks |
-| Durable job/attempt/lease PostgreSQL foundation | Implemented | Idempotent enqueue, capability-aware claim, lease heartbeat/fencing, bounded retry, cancellation; no Python worker runtime or artifact publication yet |
+| Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions and Python PostgresJobRepository + pull-based WorkerRuntime; no worker CLI, authenticated source access, or artifact publication yet |
 | Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
 
 ## Not implemented yet
 
-- Python JobRepository/application service, worker runtime/CLI, artifact staging/publication, authenticated worker enrollment, and operational recovery
+- Worker CLI/process supervisor, graceful signal/drain controls, authenticated root-scoped source access, artifact staging/publication, and operational recovery
 - Explicit path-normalizer migration
 - Durable scan resume and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
@@ -72,3 +72,6 @@ Do not point the scanner at hostile or attacker-writable filesystems and assume 
 
 
 See [Durable Jobs and Worker Lease Foundation](docs/development/durable-jobs.md) for the migration, SQL function contract, and current limitations.
+
+
+The [Durable Jobs and Worker Lease guide](docs/development/durable-jobs.md) now includes the Python repository adapter and pull-based runtime. The worker still cannot publish artifacts or read arbitrary source paths through a privileged interface.
