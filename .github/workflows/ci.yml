@@ -42,8 +42,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,postgres-test]"
       - name: Lint
-        run: |
-          ruff check --fix .
-          git diff -- src/personal_ai_brain/memory/repository.py
+        run: ruff check .
       - name: Test
         run: pytest

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-import hashlib
 from typing import Any
 from uuid import UUID, uuid4
 
