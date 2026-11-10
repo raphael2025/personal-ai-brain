@@ -17,7 +17,6 @@ if not DATABASE_URL:
 psycopg = pytest.importorskip("psycopg")
 from psycopg import sql  # noqa: E402
 
-from personal_ai_brain.assets.identity import read_file_at  # noqa: E402
 from personal_ai_brain.ingestion.models import JobLease  # noqa: E402
 from personal_ai_brain.workers.source_access import (  # noqa: E402
     AuthorizedSourceReader,
