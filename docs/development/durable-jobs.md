@@ -36,10 +36,11 @@ Lease duration is bounded to 5–86,400 seconds. A lease generation increases on
 
 ## Current limitations
 
-- No Python JobRepository adapter or worker process/CLI is included yet.
-- Artifact staging, checksum validation, and atomic publication are not implemented.
+- The Python PostgresJobRepository and pull-based WorkerRuntime are implemented in PR #39.
+- No worker CLI, authenticated worker enrollment, or OS signal/drain integration is included yet.
+- Artifact staging, source-handle authorization, checksum validation, and atomic publication are not implemented.
 - Worker registration currently uses direct database operations; authenticated worker enrollment is not implemented.
 - Database functions are the current fencing boundary; database roles and network access still require deployment hardening.
 - Backups, metrics, operational dashboards, and multi-node transport remain later work.
 
-Do not expose PostgreSQL credentials to untrusted workers. Workers must not modify source files. Do not treat a claimed job as permission to access arbitrary roots; root-scoped authorization and isolated artifact sinks are still required.
+Do not expose PostgreSQL credentials to untrusted workers. Workers must not modify source files. The runtime passes a source-version ID, not an arbitrary path. A handler must not publish externally visible output merely because it completed; fenced artifact publication and root-scoped source access are still required.
