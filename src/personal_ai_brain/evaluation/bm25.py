@@ -11,7 +11,6 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 
-
 _TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 
 
