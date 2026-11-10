@@ -65,6 +65,145 @@ class AssetRegistryRepository(Protocol):
 
     def list_roots(self) -> list[StorageRootRecord]: ...
 
+    def start_scan(self, root_id: str, *, scanner_version: str) -> str: ...
+
+    def finish_scan(
+        self,
+        scan_id: str,
+        observations: list[PreparedObservation],
+        *,
+        status: ScanStatus,
+        error_summary: str | None = None,
+    ) -> int: ...
+
+    def reconcile_scan(self, scan_id: str, *, actor: str) -> int: ...
+
+    def preview_path_normalizer_migration(
+        self, root_id: str, *, target_version: str
+    ) -> PathNormalizerMigrationPlan: ...
+
+    def apply_path_normalizer_migration(
+        self, root_id: str, *, target_version: str, actor: str
+    ) -> PathNormalizerMigrationPlan: ...
+
+    def fail_scan(self, scan_id: str, error_summary: str) -> None: ...
+
+
+class RegistryNotFoundError(LookupError):
+    """A requested registry object does not exist."""
+
+
+class PathNormalizerMigrationRequired(RuntimeError):
+    """Active location keys need explicit migration before scanning can reconcile."""
+
+
+class PathNormalizerCollisionError(RuntimeError):
+    """A target normalizer would make distinct active locations collide."""
+
+
+class IdempotencyConflict(RuntimeError):
+    """A repeated scan finalization differs from the already committed result."""
+
+
+class PostgresAssetRegistryRepository:
+    """Transactional PostgreSQL implementation of the registry repository."""
+
+    def __init__(
+        self,
+        connection_factory: Callable[[], Any],
+        *,
+        close_connections: bool = True,
+    ) -> None:
+        self._connect = connection_factory
+        self._close_connections = close_connections
+
+    @contextmanager
+    def _connection(self) -> Iterator[Any]:
+        connection = self._connect()
+        try:
+            with connection.transaction():
+                yield connection
+        finally:
+            if self._close_connections:
+                connection.close()
+
+    @staticmethod
+    def _uuid(value: str) -> UUID:
+        try:
+            return UUID(value)
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError("registry IDs must be UUID strings") from exc
+
+    @staticmethod
+    def _root_record(row: tuple[Any, ...]) -> StorageRootRecord:
+        root_id, name, uri, kind, enabled, follow_symlinks, case_sensitive, normalizer = row
+        return StorageRootRecord(
+            root=StorageRoot(
+                root_id=str(root_id),
+                display_name=name,
+                uri=uri,
+                kind=StorageKind(kind),
+                enabled=enabled,
+                follow_symlinks=follow_symlinks,
+            ),
+            path_case_sensitive=case_sensitive,
+            path_normalizer_version=normalizer,
+        )
+
+    def register_root(
+        self, root: StorageRoot, *, path_case_sensitive: bool | None = None
+    ) -> None:
+        if path_case_sensitive is not None and type(path_case_sensitive) is not bool:
+            raise ValueError("path_case_sensitive must be a boolean or None")
+        normalizer = "v1-casefold" if path_case_sensitive is False else "v1-exact"
+        with self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO storage_roots (
+                    id, display_name, uri, kind, enabled, follow_symlinks,
+                    path_case_sensitive, path_normalizer_version
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    self._uuid(root.root_id),
+                    root.display_name,
+                    root.uri,
+                    root.kind.value,
+                    root.enabled,
+                    root.follow_symlinks,
+                    path_case_sensitive,
+                    normalizer,
+                ),
+            )
+
+    def get_root(self, root_id: str) -> StorageRootRecord:
+        with self._connection() as connection:
+            row = connection.execute(
+                """
+                SELECT id, display_name, uri, kind, enabled, follow_symlinks,
+                       path_case_sensitive, path_normalizer_version
+                  FROM storage_roots
+                 WHERE id = %s
+                """,
+                (self._uuid(root_id),),
+            ).fetchone()
+        if row is None:
+            raise RegistryNotFoundError(f"storage root not found: {root_id}")
+        return self._root_record(row)
+
+    def list_roots(self) -> list[StorageRootRecord]:
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, display_name, uri, kind, enabled, follow_symlinks,
+                       path_case_sensitive, path_normalizer_version
+                  FROM storage_roots
+                 ORDER BY display_name, id
+                """
+            ).fetchall()
+        return [self._root_record(row) for row in rows]
+
     def _path_normalizer_migration(
         self,
         root_id: str,
@@ -232,145 +371,6 @@ class AssetRegistryRepository(Protocol):
         return self._path_normalizer_migration(
             root_id, target_version=target_version, actor=actor
         )
-
-    def start_scan(self, root_id: str, *, scanner_version: str) -> str: ...
-
-    def finish_scan(
-        self,
-        scan_id: str,
-        observations: list[PreparedObservation],
-        *,
-        status: ScanStatus,
-        error_summary: str | None = None,
-    ) -> int: ...
-
-    def reconcile_scan(self, scan_id: str, *, actor: str) -> int: ...
-
-    def preview_path_normalizer_migration(
-        self, root_id: str, *, target_version: str
-    ) -> PathNormalizerMigrationPlan: ...
-
-    def apply_path_normalizer_migration(
-        self, root_id: str, *, target_version: str, actor: str
-    ) -> PathNormalizerMigrationPlan: ...
-
-    def fail_scan(self, scan_id: str, error_summary: str) -> None: ...
-
-
-class RegistryNotFoundError(LookupError):
-    """A requested registry object does not exist."""
-
-
-class PathNormalizerMigrationRequired(RuntimeError):
-    """Active location keys need explicit migration before scanning can reconcile."""
-
-
-class PathNormalizerCollisionError(RuntimeError):
-    """A target normalizer would make distinct active locations collide."""
-
-
-class IdempotencyConflict(RuntimeError):
-    """A repeated scan finalization differs from the already committed result."""
-
-
-class PostgresAssetRegistryRepository:
-    """Transactional PostgreSQL implementation of the registry repository."""
-
-    def __init__(
-        self,
-        connection_factory: Callable[[], Any],
-        *,
-        close_connections: bool = True,
-    ) -> None:
-        self._connect = connection_factory
-        self._close_connections = close_connections
-
-    @contextmanager
-    def _connection(self) -> Iterator[Any]:
-        connection = self._connect()
-        try:
-            with connection.transaction():
-                yield connection
-        finally:
-            if self._close_connections:
-                connection.close()
-
-    @staticmethod
-    def _uuid(value: str) -> UUID:
-        try:
-            return UUID(value)
-        except (ValueError, TypeError, AttributeError) as exc:
-            raise ValueError("registry IDs must be UUID strings") from exc
-
-    @staticmethod
-    def _root_record(row: tuple[Any, ...]) -> StorageRootRecord:
-        root_id, name, uri, kind, enabled, follow_symlinks, case_sensitive, normalizer = row
-        return StorageRootRecord(
-            root=StorageRoot(
-                root_id=str(root_id),
-                display_name=name,
-                uri=uri,
-                kind=StorageKind(kind),
-                enabled=enabled,
-                follow_symlinks=follow_symlinks,
-            ),
-            path_case_sensitive=case_sensitive,
-            path_normalizer_version=normalizer,
-        )
-
-    def register_root(
-        self, root: StorageRoot, *, path_case_sensitive: bool | None = None
-    ) -> None:
-        if path_case_sensitive is not None and type(path_case_sensitive) is not bool:
-            raise ValueError("path_case_sensitive must be a boolean or None")
-        normalizer = "v1-casefold" if path_case_sensitive is False else "v1-exact"
-        with self._connection() as connection:
-            connection.execute(
-                """
-                INSERT INTO storage_roots (
-                    id, display_name, uri, kind, enabled, follow_symlinks,
-                    path_case_sensitive, path_normalizer_version
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    self._uuid(root.root_id),
-                    root.display_name,
-                    root.uri,
-                    root.kind.value,
-                    root.enabled,
-                    root.follow_symlinks,
-                    path_case_sensitive,
-                    normalizer,
-                ),
-            )
-
-    def get_root(self, root_id: str) -> StorageRootRecord:
-        with self._connection() as connection:
-            row = connection.execute(
-                """
-                SELECT id, display_name, uri, kind, enabled, follow_symlinks,
-                       path_case_sensitive, path_normalizer_version
-                  FROM storage_roots
-                 WHERE id = %s
-                """,
-                (self._uuid(root_id),),
-            ).fetchone()
-        if row is None:
-            raise RegistryNotFoundError(f"storage root not found: {root_id}")
-        return self._root_record(row)
-
-    def list_roots(self) -> list[StorageRootRecord]:
-        with self._connection() as connection:
-            rows = connection.execute(
-                """
-                SELECT id, display_name, uri, kind, enabled, follow_symlinks,
-                       path_case_sensitive, path_normalizer_version
-                  FROM storage_roots
-                 ORDER BY display_name, id
-                """
-            ).fetchall()
-        return [self._root_record(row) for row in rows]
 
     def start_scan(self, root_id: str, *, scanner_version: str) -> str:
         scan_id = uuid4()
