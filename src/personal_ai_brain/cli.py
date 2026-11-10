@@ -44,6 +44,18 @@ def _parser() -> argparse.ArgumentParser:
         help="filesystem path case behavior; unknown uses exact path comparison",
     )
     root_commands.add_parser("list", help="list enrolled roots")
+    migrate = root_commands.add_parser(
+        "migrate-normalizer", help="preview or apply a storage-root path-key migration"
+    )
+    migrate.add_argument("root_id")
+    migrate.add_argument(
+        "--target-version", choices=("v1-exact", "v1-casefold"), required=True
+    )
+    migrate.add_argument(
+        "--apply", action="store_true",
+        help="apply after reviewing the preview; otherwise this command is read-only",
+    )
+    migrate.add_argument("--actor", help="operator identity required with --apply")
 
     scan = commands.add_parser("scan", help="scan an enrolled root")
     scan.add_argument("root_id")
@@ -115,6 +127,38 @@ def main(argv: list[str] | None = None) -> int:
                     f"{item.root.display_name}\t{item.root.uri}\t"
                     f"{'enabled' if item.root.enabled else 'disabled'}"
                 )
+            return 0
+
+        if args.command == "root" and args.root_command == "migrate-normalizer":
+            if args.apply:
+                if not args.actor:
+                    raise ValueError("--actor is required with --apply")
+                plan = repository.apply_path_normalizer_migration(
+                    args.root_id,
+                    target_version=args.target_version,
+                    actor=args.actor,
+                )
+            else:
+                plan = repository.preview_path_normalizer_migration(
+                    args.root_id, target_version=args.target_version
+                )
+            print(
+                f"root={plan.root_id} from={plan.from_version} to={plan.to_version} "
+                f"locations={len(plan.changes)} collisions={len(plan.collisions)} "
+                f"applied={plan.applied}"
+            )
+            for change in plan.changes:
+                print(
+                    f"location={change.location_id} path={change.relative_path!r} "
+                    f"{change.previous_key!r} -> {change.target_key!r}"
+                )
+            for collision in plan.collisions:
+                print(
+                    f"COLLISION key={collision.target_key!r} "
+                    f"locations={','.join(collision.location_ids)}"
+                )
+            if not args.apply:
+                print("DRY RUN ONLY: no registry rows were changed.")
             return 0
 
         if args.command == "scan":
