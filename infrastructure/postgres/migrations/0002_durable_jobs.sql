@@ -234,13 +234,13 @@ BEGIN
     END IF;
 
     IF v_job.lease_owner_worker_id IS NOT NULL THEN
-        UPDATE job_attempts
+        UPDATE job_attempts AS a
            SET status = 'abandoned',
                finished_at = now(),
                error_summary = 'lease expired before completion'
-         WHERE job_id = v_job.id
-           AND lease_generation = v_job.lease_generation
-           AND status = 'running';
+         WHERE a.job_id = v_job.id
+           AND a.lease_generation = v_job.lease_generation
+           AND a.status = 'running';
     END IF;
 
     v_attempt := v_job.attempt_count + 1;
