@@ -271,7 +271,7 @@ BEGIN
 
     RETURN QUERY SELECT
         v_job.id, v_job.asset_version_id, v_job.task_type,
-        v_job.semantic_version, v_job.config_digest, v_job.payload,
+        v_job.semantic_version, v_job.config_digest::text, v_job.payload,
         v_attempt, v_generation, v_expiry;
 END;
 $function$;
