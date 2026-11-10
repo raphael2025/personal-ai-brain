@@ -1,0 +1,8 @@
+# Copy this file to a private worker-local location and replace both UUIDs.
+# Do not commit real host paths or customer directory names.
+
+version = 1
+worker_id = "00000000-0000-0000-0000-000000000001"
+
+[mounts]
+"00000000-0000-0000-0000-000000000002" = "/mnt/pab/documents"
