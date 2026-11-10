@@ -13,43 +13,43 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] Registry domain, PostgreSQL persistence, and initial scan service validated end-to-end
 - [ ] Cross-platform scanner guarantees and hostile-filesystem validation
 - [x] Initial synthetic evaluation corpus and labelled baseline query set (four documents/five questions; expansion remains)
-- [x] Desk research comparison: OpenViking, MemOS, Cognee, and hybrid retrieval baseline (benchmark still pending in Issue #5)
+- [x] Desk research comparison: OpenViking, MemOS, Cognee, and hybrid retrieval baseline (reproducible comparative benchmark still pending in Issue #5)
 
 ## Phase 1 — Asset Registry and durable processing (P0)
-- [x] Root enrollment and initial storage-root policy
-- [x] Persistent assets, versions, locations, scan runs, observations
-- [x] Transactional COMPLETE-only reconciliation
+- [x] Root enrollment and storage-root policy
+- [x] Persistent assets, immutable versions, locations, scan runs, and observations
+- [x] Transactional COMPLETE-only reconciliation with explicit preview/apply
 - [ ] Rename/duplicate candidate resolution without destructive auto-merge
-- [x] Durable job schema, Python repository adapter, and pull-based worker runtime (PRs #38–#39)
-- [ ] Worker CLI, process supervision, authenticated source access, and fenced artifact publication
-- [x] Registry CLI: scan status, asset list/inspect, dry-run and explicit audited reconciliation
-- [ ] Worker runtime/CLI, artifact staging and atomic publication
-- [x] Explicit collision-safe path-normalizer migration with dry-run, collision refusal, audit, and transaction rollback (PR #40)
+- [x] Durable job schema, repository, capability-aware claims, lease heartbeat/fencing, retry, and cancellation (PRs #38–#39)
+- [x] Worker registration/grant/revoke/run CLI and extraction enqueue (PR #46)
+- [x] Root-scoped worker source authorization and bounded descriptor-relative reads (PR #45)
+- [x] Lease-fenced PostgreSQL artifact publication (PR #44)
+- [x] Registry CLI: scan history, asset list/inspect, reconciliation dry-run/apply, and path-normalizer migration (PRs #37 and #40)
+- [ ] Interrupted scan recovery, worker process supervision, OS sandboxing, per-worker DB credentials, and crash/recovery drills
+- [ ] External content-addressed artifact staging, atomic blob publication, and orphan cleanup
 
 ## Phase 2 — Extraction, provenance, and search (P1)
 - [x] Initial bounded UTF-8 text/Markdown/code extractor (PR #41)
 - [x] Bounded descriptor-relative no-follow source reader (PR #42)
-- [x] Root-scoped worker authorization/mount mapping and bounded source reads (PR #45)
-- [x] End-to-end local text/Markdown/code extraction scheduling and publication (PR #46)
-- [ ] PDF/DOCX/HTML/archive extractors and their end-to-end pipelines
-- [x] Initial versioned artifact provenance and fenced database publication (PR #44)
-- [ ] External content-addressed artifacts and rebuild manifests
-- [ ] Sandboxed extraction with resource limits
-- [x] Initial in-memory lexical BM25 retrieval baseline with root/type/time filters (PR #43)
-- [x] Reproducible synthetic benchmark with Recall@5/10, MRR, nDCG@10, citation precision, and latency reporting (PR #43)
-- [ ] Expand labelled evaluation corpus and add persistent chunk/version retrieval regression tests
-- [ ] Optional vector channel and measured hybrid ranking
-- [ ] Evidence spans and citations
+- [x] End-to-end text/Markdown/code extraction scheduling and publication (PR #46)
+- [ ] PDF/DOCX/HTML/archive/image/audio/video extractors and their end-to-end pipelines
+- [ ] Sandboxed extraction with CPU, memory, time, and archive-expansion limits
+- [x] Versioned artifact provenance and lease-fenced PostgreSQL JSONB publication (PR #44)
+- [x] Initial in-memory lexical BM25 baseline with deterministic ranking and metadata filters (PR #43)
+- [x] Local PostgreSQL-backed search over persisted extracted-text artifacts, bounded to 5,000 documents / 64 MiB per request (PR #47)
+- [x] CLI search with root, document-type, and modified-time filters (PR #47)
+- [x] Reproducible synthetic benchmark reporting Recall@5/10, MRR, nDCG@10, citation precision, and latency (PR #43)
+- [ ] Expand labelled evaluation corpus and integrate persistent chunk/version retrieval regression tests
+- [ ] Persistent inverted index, exact evidence spans/citations, optional vector channel, and measured hybrid ranking
 
 ## Phase 3 — Knowledge, memory, and context (P2)
-- [ ] L0/L1/L2 progressive content model
-- [ ] Explicit memory origins and lifecycle
-- [ ] Entity/claim/evidence graph and conflict handling
-- [ ] Freshness and activation policy (separate from content depth)
-- [ ] Principal/scope/classification model
-- [ ] Deny-by-default policy engine and append-only audit
-- [ ] ContextBundle assembly, token budget, citations, omissions
-- [ ] External model egress grants and revocation
+- [x] Initial memory origins/states, source-version evidence, explicit confirmation, and append-only transition history (PR #48)
+- [ ] Memory revision history, deletion invalidation, freshness/activation scoring, and lifecycle service integration
+- [ ] L0/L1/L2 progressive content model and context-depth/activation separation
+- [ ] Entity/claim/evidence graph, conflict handling, and duplicate review
+- [ ] Principal/scope/classification model and deny-by-default policy engine
+- [ ] ContextBundle assembly, token budget, citations, omissions, and policy-version cache keys
+- [ ] External model egress grants, provider matching, revocation, and audit
 
 ## Phase 4 — API, clients, and operations (P3)
 - [ ] Versioned local HTTP API and OpenAPI contract

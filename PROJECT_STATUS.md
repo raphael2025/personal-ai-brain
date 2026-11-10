@@ -1,6 +1,6 @@
 # Project Status
 
-**Current phase:** Phase 1 — Asset Registry foundation  
+**Current phase:** Phase 2 — extraction, provenance, and local search, with an initial memory foundation  
 **Release status:** pre-alpha; not suitable for production use or ingestion of sensitive personal archives.
 
 This page distinguishes merged and validated capabilities from planned architecture. A roadmap checkbox is not evidence that a capability works.
@@ -11,45 +11,49 @@ This page distinguishes merged and validated capabilities from planned architect
 |---|---|---|
 | SHA-256 file identity | Implemented | Path-based helper remains for standalone use; registry scans use descriptor-relative hashing |
 | Directory discovery | Implemented | Read-only, no symlink traversal; fails closed without required POSIX primitives; not a hardened sandbox against hostile concurrent filesystem changes |
-| Descriptor-relative file hashing and bounded source reads | Implemented | Root-relative opens, O_NOFOLLOW, O_NONBLOCK, size/mtime checks, and before/after descriptor checks; caller-side root authorization/mount mapping and cross-platform validation remain open |
-| StorageRoot / AssetLocation models | Implemented | URI/path validation and explicit collision-safe path-normalizer migration are implemented for v1-exact/v1-casefold; cross-platform semantics still need broader validation |
-| PostgreSQL Asset Registry schema | Implemented | Manual migration; no migration runner or rollback automation yet |
-| Asset identity and content versions | Implemented | Stable logical asset IDs; fingerprints do not auto-merge different paths |
-| Storage locations and scan history | Implemented | Current location and historical events are stored |
-| COMPLETE-only reconciliation | Implemented | PARTIAL/FAILED scans never infer missing locations; complete empty scans can mark locations missing |
-| Registry repository and scan service | Implemented | Initial root/scan path; scan completion no longer implicitly marks unseen locations missing; operator reconciliation is explicit and audited |
-| CLI | Initial implementation | Registry commands plus worker register/grant-root/revoke-root/run and extract enqueue; foreground worker only, no Windows service/daemon or remote worker |
-| Scan replay handling | Implemented | Identical finalization is idempotent; conflicting replay is rejected |
-| CI | Implemented | Python 3.11–3.13; PR #34 passed all matrix jobs |
-| CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
-| Secret scanning | Implemented | PR #34 passed Gitleaks |
-| Durable job/attempt/lease foundation | Implemented | PostgreSQL schema/functions, Python repository/runtime, worker registration, root grants, extraction enqueue, foreground run, heartbeat and signal drain; process supervision and crash-recovery drills remain |
-| Lease-fenced artifact publication | Initial implementation | PostgreSQL JSONB payload publication verifies active lease owner/generation/expiry, job config digest, and immutable source SHA; wired to the text extraction handler; no external blob staging or garbage collection yet |
-| Root-scoped worker source authorization | Initial implementation | Revocable worker/root grants, audited CLI grant/revoke, local TOML mount mapping, active job-lease verification, descriptor-relative bounded reads, and immutable SHA-256 verification |
-| Text/Markdown extraction pipeline | Initial implementation | End-to-end enqueue, active-lease source read, UTF-8 extraction, fenced PostgreSQL JSONB artifact publication, and job completion; 16 MiB bound; other document formats are not implemented |
-| BM25 lexical retrieval and synthetic benchmark | Initial implementation | Dependency-free in-memory BM25, metadata filters, deterministic ranking, five labelled queries over four synthetic documents; not a persistent or production search service |
-| Contributor architecture and research docs | Implemented | Blueprint is a target design; not every target module exists |
+| Descriptor-relative file hashing and bounded source reads | Implemented | Root-relative opens, O_NOFOLLOW, O_NONBLOCK, size/mtime checks, and before/after descriptor checks; cross-platform guarantees and hostile concurrent rename validation remain open |
+| StorageRoot / AssetLocation models | Implemented | URI/path validation and explicit collision-safe v1-exact/v1-casefold path-normalizer migration; broader platform-specific semantics remain |
+| PostgreSQL Asset Registry | Implemented | Manual migrations; no migration runner or automated rollback tooling |
+| Asset identity, immutable content versions, locations, and scan history | Implemented | Different paths are not automatically merged even when bytes match |
+| COMPLETE-only reconciliation | Implemented | PARTIAL/FAILED scans never infer missing locations; operator preview/apply is explicit and audited |
+| Registry CLI | Implemented | Root enrollment/listing, scan, scan history, asset list/inspect, reconciliation preview/apply, and normalizer migration; interrupted RUNNING scan recovery remains |
+| Durable jobs and worker leases | Initial implementation | Idempotent enqueue, capability-aware claims, heartbeat, fencing, bounded retry/cancellation, and pull-based runtime; crash drills, process supervision, OS sandboxing, and per-worker DB credentials remain |
+| Worker source authorization | Initial implementation | Revocable worker/root grants, audit events, local TOML mount mapping, active-lease checks, descriptor-relative bounded reads, and SHA-256 verification; actor identity is not yet backed by the full policy engine |
+| Lease-fenced artifact publication | Initial implementation | PostgreSQL JSONB publication checks active lease, config digest, and immutable source SHA; external content-addressed blob staging and orphan cleanup remain |
+| Text/Markdown/code extraction | Initial end-to-end path | Bounded UTF-8 extraction (16 MiB), durable enqueue, authorized source read, fenced artifact publication, and job completion; PDF/DOCX/HTML/archive/image/audio/video are not implemented |
+| BM25 and local search | Initial implementation | PostgreSQL adapter searches ready extracted-text artifacts for current available locations; BM25 index is rebuilt per request, capped at 5,000 documents / 64 MiB; no persistent inverted index, exact evidence spans, or API authorization |
+| Synthetic retrieval benchmark | Initial implementation | Reproducible smoke benchmark with four synthetic documents and five labelled questions; not representative of personal archives |
+| Explicit memory lifecycle | Initial implementation | Origins/states, source-version evidence, explicit candidate confirmation, content hash, and append-only transition events; no revision/deletion workflow, activation scoring, conflict resolution, or authenticated confirmation |
+| CI, CodeQL, and secret scanning | Implemented | Mainline PRs #47 and #48 passed Python 3.11–3.13 CI, CodeQL, and Gitleaks; automated checks are not a complete security audit |
+| Architecture and research documentation | Implemented | Blueprint describes the target system; not every target module exists |
 
 ## Not implemented yet
 
-- OS-level worker sandboxing, per-worker database credentials, Windows service/daemon supervision, remote worker protocol, external content-addressed artifact storage/staging/garbage collection, and crash/recovery drills
-- Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
-- Rename/move candidate workflow and duplicate-asset review UI
-- PDF/DOCX/HTML/archive/image/audio/video extractors and corresponding end-to-end artifact pipelines; current end-to-end path supports bounded UTF-8 text/Markdown/code
-- OCR, transcription, embeddings, persistent/chunk-level retrieval, vector retrieval, and a larger labelled evaluation corpus
-- Memory lifecycle, activation scoring, and progressive L0/L1/L2 runtime
-- Knowledge graph, claim/evidence model, and conflict resolution
-- Context planner, token budgeting, ContextBundle API, and MCP
-- Authentication, authorization, encryption, backup/restore, and external egress enforcement
-- Multi-node workers and desktop/local web UI
+- Durable scan resume, interrupted RUNNING scan recovery, and operator recovery for abandoned scans
+- Rename/move candidate workflow and duplicate-asset review
+- OS-level worker sandboxing, per-worker database credentials, Windows service/daemon supervision, remote worker protocol, crash/recovery drills
+- External content-addressed artifact storage, staging, atomic blob publication, rebuild manifests, and orphan garbage collection
+- PDF/DOCX/HTML/archive/image/audio/video extraction; OCR and transcription
+- Persistent inverted index, chunk-level retrieval, exact evidence spans/citations, embeddings, vector retrieval, and a larger labelled evaluation corpus
+- Memory revisions, deletion invalidation, freshness/activation scoring, conflict resolution, entity/claim/evidence graph, and progressive L0/L1/L2 runtime
+- Principal/scope/classification model, deny-by-default policy engine, authenticated user confirmation, ContextBundle assembly, token budgeting, and external-model egress enforcement
+- Versioned local API, MCP, desktop/local web UI
+- Multi-node workers, backup/restore, metrics, and operational dashboards
 
 ## Current CLI
 
-Install the optional PostgreSQL support and developer tools:
+Install PostgreSQL support and developer tools:
 
     python -m pip install -e ".[postgres,dev]"
 
-Set PAB_DATABASE_URL. Apply migrations 0001–0004 in order to enable the complete worker path; the registry-only path starts at migration 0001. Then use:
+Set PAB_DATABASE_URL without putting the connection string in shell history. Apply migrations 0001–0005 in order:
+
+    read -rsp "PAB_DATABASE_URL: " PAB_DATABASE_URL; echo; export PAB_DATABASE_URL
+    for migration in infrastructure/postgres/migrations/000*.sql; do
+        psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+    done
+
+Registry operations:
 
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
@@ -60,33 +64,46 @@ Set PAB_DATABASE_URL. Apply migrations 0001–0004 in order to enable the comple
     pab reconcile preview <scan-uuid>
     pab reconcile apply <scan-uuid> --actor operator-name
 
-SMB/NFS roots require an explicit local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for details and limitations.
+SMB/NFS roots require an explicit local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md).
 
-Worker commands:
+Worker and extraction operations:
 
     pab worker register --worker-id <worker-uuid> --name "text worker" --capability text
     pab worker grant-root --worker-id <worker-uuid> --root-id <root-uuid> --actor operator
     pab extract enqueue --asset-version-id <version-uuid> --root-id <root-uuid>
     pab worker run --worker-id <worker-uuid> --mounts-config /etc/pab/worker-mounts.toml --once
 
-See [Local Worker Operations](docs/development/worker-operations.md) for mount configuration, continuous operation, revocation, and limits.
+See [Local Worker Operations](docs/development/worker-operations.md). The worker is a foreground local process, not a supervised service.
 
-Run the synthetic lexical retrieval benchmark (no database required):
+Local lexical search:
+
+    pab search "project release owner" --limit 10
+    pab search "project release owner" --root-id <root-uuid>
+    pab search "project release owner" --document-type md
+
+Search reads ready inline JSONB text artifacts and rebuilds a bounded in-memory BM25 index for each request. See [Persisted Lexical Search](docs/development/persisted-search.md).
+
+Run the synthetic lexical retrieval benchmark without a database:
 
     python -m personal_ai_brain.evaluation.benchmark evaluation/datasets/synthetic-v1 --output benchmark-results/bm25-synthetic-v1.json
 
 See [BM25 Baseline](docs/research/bm25-baseline.md).
 
+## Memory lifecycle foundation
+
+Migration 0005 adds explicit memory origins and states, exact source-version evidence, and append-only transition history. Model-inferred and source-derived memories start as candidates. Promotion to user-confirmed/active requires the explicit repository confirmation operation.
+
+The actor value is currently audit metadata, not authentication. Do not expose memory confirmation or local search through an unauthenticated API/MCP endpoint. See [Explicit Memory Lifecycle v1](docs/development/memory-lifecycle.md).
+
 ## Security warning
 
-Do not point the scanner at hostile or attacker-writable filesystems and assume it is a complete security boundary. It is read-only, but hostile concurrent filesystem changes and platform-specific behavior still require further validation. Do not expose any future API or parser service to a network until authentication, authorization, isolation, and resource limits are implemented and tested. External model egress is a design requirement, not yet an enforced runtime control.
+Do not point the scanner at hostile or attacker-writable filesystems and assume it is a complete security boundary. Do not expose worker, search, parser, memory, or future API services to a network until authentication, authorization, isolation, and resource limits are implemented and tested. External model egress is a design requirement, not yet an enforced runtime control.
 
 ## Validation policy
 
 - CI must pass on the current commit before a change is considered validated.
 - CodeQL success does not equal a complete security review.
-- Performance targets require reproducible benchmarks with hardware, dataset, versions, and configuration recorded.
-- Integrations remain experimental until their versions, licenses, update behavior, recovery behavior, and provenance have been tested.
+- Performance and retrieval-quality claims require reproducible benchmarks with hardware, dataset, versions, and configuration.
+- Integrations remain experimental until versions, licenses, update behavior, recovery behavior, and provenance have been tested.
 
-
-See [Durable Jobs and Worker Lease Foundation](docs/development/durable-jobs.md), [Lease-Fenced Artifact Publication](docs/development/artifact-publication.md), and [Local Worker Operations](docs/development/worker-operations.md) for the migration, CLI, and security contracts.
+See [Durable Jobs and Worker Lease Foundation](docs/development/durable-jobs.md), [Lease-Fenced Artifact Publication](docs/development/artifact-publication.md), [Local Worker Operations](docs/development/worker-operations.md), [Persisted Lexical Search](docs/development/persisted-search.md), and [Explicit Memory Lifecycle](docs/development/memory-lifecycle.md).
