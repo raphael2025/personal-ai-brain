@@ -27,7 +27,8 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] Explicit collision-safe path-normalizer migration with dry-run, collision refusal, audit, and transaction rollback (PR #40)
 
 ## Phase 2 — Extraction, provenance, and search (P1)
-- [ ] Text/Markdown, PDF, DOCX, HTML, and code extractors
+- [x] Initial bounded UTF-8 text/Markdown/code extractor (PR #41)
+- [ ] Root-scoped source reader and PDF/DOCX/HTML/archive extractors
 - [ ] Versioned artifacts and rebuild manifests
 - [ ] Sandboxed extraction with resource limits
 - [ ] Lexical BM25 retrieval baseline
