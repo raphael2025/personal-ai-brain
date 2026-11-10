@@ -45,7 +45,10 @@ class JobSpec:
             raise ValueError("priority must be an integer")
         if type(self.max_attempts) is not int or not 1 <= self.max_attempts <= 20:
             raise ValueError("max_attempts must be between 1 and 20")
-        if any(not isinstance(item, str) or not item.strip() for item in self.required_capabilities):
+        if any(
+            not isinstance(item, str) or not item.strip()
+            for item in self.required_capabilities
+        ):
             raise ValueError("required_capabilities must contain non-empty strings")
         if len(set(self.required_capabilities)) != len(self.required_capabilities):
             raise ValueError("required_capabilities must not contain duplicates")
