@@ -190,7 +190,10 @@ def test_collision_preview_refuses_apply_without_merging(registry):
         (root_id,),
     ).fetchone()[0] == "v1-exact"
     assert connection.execute(
-        "SELECT count(*) FROM asset_locations WHERE storage_root_id = %s AND path_normalizer_version = 'v1-exact'",
+        """
+        SELECT count(*) FROM asset_locations
+         WHERE storage_root_id = %s AND path_normalizer_version = 'v1-exact'
+        """,
         (root_id,),
     ).fetchone()[0] == 2
 
