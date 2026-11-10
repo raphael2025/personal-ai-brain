@@ -156,7 +156,7 @@ class PostgresLexicalSearchRepository:
                       AND (%s::uuid IS NULL OR l.storage_root_id = %s::uuid)
                       AND (
                           %s::text IS NULL
-                          OR lower(substring(l.relative_path FROM '[.]([^./]+))) = %s::text
+                          OR lower(substring(l.relative_path FROM '[.]([^./]+)$')) = %s::text
                       )
                       AND (
                           %s::timestamptz IS NULL
