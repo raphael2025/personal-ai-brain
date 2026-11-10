@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -47,24 +49,24 @@ class WorkerSourceAccessRepository(Protocol):
 class PostgresWorkerSourceAccessRepository:
     """Database-enforced worker/root grant checks and immutable source resolution."""
 
-    def __init__(self, connection_factory, *, close_connections: bool = True) -> None:
+    def __init__(
+        self,
+        connection_factory: Callable[[], Any],
+        *,
+        close_connections: bool = True,
+    ) -> None:
         self._connect = connection_factory
         self._close_connections = close_connections
 
-    def _connection(self):
-        from contextlib import contextmanager
-
-        @contextmanager
-        def managed():
-            connection = self._connect()
-            try:
-                with connection.transaction():
-                    yield connection
-            finally:
-                if self._close_connections:
-                    connection.close()
-
-        return managed()
+    @contextmanager
+    def _connection(self) -> Iterator[Any]:
+        connection = self._connect()
+        try:
+            with connection.transaction():
+                yield connection
+        finally:
+            if self._close_connections:
+                connection.close()
 
     @staticmethod
     def _uuid(value: str, field_name: str) -> UUID:
@@ -126,7 +128,7 @@ class PostgresWorkerSourceAccessRepository:
                     uuid4(),
                     actor,
                     str(root_uuid),
-                    __import__("json").dumps(
+                    json.dumps(
                         {"worker_id": str(worker_uuid), "permission": "read_source"}
                     ),
                 ),
