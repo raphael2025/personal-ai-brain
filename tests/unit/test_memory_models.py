@@ -38,7 +38,7 @@ def test_memory_evidence_requires_uuid_and_safe_locator() -> None:
     with pytest.raises(ValueError, match="UUID"):
         MemoryEvidence("not-a-uuid")
     with pytest.raises(ValueError, match="control"):
-        MemoryEvidence(str(uuid4()), locator="page\\x00secret")
+        MemoryEvidence(str(uuid4()), locator="page\x00secret")
 
 
 def test_confidence_must_be_finite_and_bounded() -> None:

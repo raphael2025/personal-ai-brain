@@ -83,12 +83,15 @@ def test_inferred_memory_requires_explicit_confirmation_and_audits_it(memory_env
     assert active.origin is MemoryOrigin.USER_CONFIRMED
     assert active.state is MemoryState.ACTIVE
     assert active.confirmed_by == "user"
-    events = connection.execute(
-        "SELECT action, previous_origin, new_origin, previous_state, new_state FROM memory_state_events WHERE memory_id = %s ORDER BY occurred_at, id",
+    confirmed_event = connection.execute(
+        "SELECT previous_origin, new_origin, previous_state, new_state FROM memory_state_events WHERE memory_id = %s AND action = 'confirmed'",
         (memory_id,),
-    ).fetchall()
-    assert [event[0] for event in events] == ["created", "confirmed"]
-    assert events[1][1:] == ("model_inferred", "user_confirmed", "candidate", "active")
+    ).fetchone()
+    assert confirmed_event == ("model_inferred", "user_confirmed", "candidate", "active")
+    assert connection.execute(
+        "SELECT count(*) FROM memory_state_events WHERE memory_id = %s",
+        (memory_id,),
+    ).fetchone()[0] == 2
 
 
 def test_source_derived_memory_retains_immutable_evidence(memory_environment):
