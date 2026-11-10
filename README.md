@@ -12,7 +12,7 @@ The system is designed around four principles:
 3. **Provenance by default:** every extracted fact should be traceable to its source and version.
 4. **Explicit permissions:** external models and tools receive only the context a user authorizes.
 
-> **Project status: pre-alpha / Phase 1 foundation.** The Asset Registry has an initial PostgreSQL schema, scan service, and CLI. The broader memory, retrieval, policy, and multi-client system remains under development; do not use it as a production personal archive yet.
+> **Project status: pre-alpha / Phase 2 foundations.** The Asset Registry, local worker/extraction path, bounded BM25 search over extracted artifacts, and initial memory lifecycle foundation are implemented. Policy enforcement, authenticated clients, multi-node operations, and broad format support remain under development. Do not use it as a production personal archive.
 
 ## 项目说明
 
@@ -33,9 +33,11 @@ The system is designed around four principles:
 - **[权限与上下文安全](docs/architecture/context-and-policy.md)**：身份、授权、外部模型数据出口。
 - **[实施地图](docs/development/implementation-map.md)**：P0–P3 工作包、依赖顺序和验收标准。
 - **[Asset Registry CLI 使用说明](docs/development/registry-service.md)**：数据库迁移、根目录登记、扫描命令及当前限制。
-- **[Durable Jobs 与 Worker Lease](docs/development/durable-jobs.md)**：任务幂等、能力匹配、租约、fencing、重试和取消；Worker runtime 仍在完善。
+- **[Durable Jobs 与 Worker Lease](docs/development/durable-jobs.md)**：任务幂等、能力匹配、租约、fencing、重试和取消。
 - **[Extraction Foundation](docs/development/extraction.md)**：首个受限 UTF-8 文本/Markdown 提取器及当前安全边界。
 - **[Local Worker Operations](docs/development/worker-operations.md)**：Worker 注册、根目录授权、任务入队、挂载配置和本地运行。
+- **[Persisted Lexical Search](docs/development/persisted-search.md)**：基于已提取文本的本地 BM25 搜索与限制。
+- **[Explicit Memory Lifecycle v1](docs/development/memory-lifecycle.md)**：记忆来源、状态、证据引用、确认和审计语义。
 - [项目状态](PROJECT_STATUS.md) · [完整文档索引](docs/README.md) · [路线图](ROADMAP.md)
 
 ## Goals
@@ -77,18 +79,39 @@ The initial design is a modular monolith with independently runnable workers:
 
 ## Quick start
 
-The initial developer CLI is available. It requires PostgreSQL and a manually applied migration:
+The initial developer CLI requires PostgreSQL and manually applied migrations:
 
     python -m pip install -e ".[postgres,dev]"
     read -rsp "PAB_DATABASE_URL: " PAB_DATABASE_URL; echo; export PAB_DATABASE_URL
-    psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/postgres/migrations/0001_asset_registry.sql
+    for migration in infrastructure/postgres/migrations/000*.sql; do
+        psql "$PAB_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+    done
 
-For the worker/extraction path, also apply migrations 0002–0004 in order. See [Local Worker Operations](docs/development/worker-operations.md) for registration, root grants, extraction enqueue, and worker execution.
+For SMB/NFS roots, pass a local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) and [Local Worker Operations](docs/development/worker-operations.md).
+
+Example registry operations:
+
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
     pab scan <root-uuid>
 
-For SMB/NFS roots, pass a local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for important limitations. This is a developer preview, not a supported general-purpose installer.
+Example worker operations:
+
+    pab worker register --worker-id <worker-uuid> --name "text worker" --capability text
+    pab worker grant-root --worker-id <worker-uuid> --root-id <root-uuid> --actor operator
+    pab extract enqueue --asset-version-id <version-uuid> --root-id <root-uuid>
+    pab worker run --worker-id <worker-uuid> --mounts-config /etc/pab/worker-mounts.toml --once
+
+Example local search:
+
+    pab search "project release owner" --limit 10
+    pab search "project release owner" --document-type md
+
+Run the synthetic lexical retrieval benchmark (no database required):
+
+    python -m personal_ai_brain.evaluation.benchmark evaluation/datasets/synthetic-v1 --output benchmark-results/bm25-synthetic-v1.json
+
+This is a developer preview, not a supported general-purpose installer. Actor strings are audit metadata, not authentication; do not expose local search or memory confirmation through an unauthenticated API/MCP endpoint.
 
 ## Contributing
 
