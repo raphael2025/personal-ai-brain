@@ -12,13 +12,13 @@ Acceptance: identical finalization replay is idempotent and conflicting replay i
 
 ## B — Durable Jobs and Workers (P0) — [Issue #21](https://github.com/raphael2025/personal-ai-brain/issues/21)
 
-Deliver: job/attempt/lease schema; lease fencing and heartbeat; worker registration/capability matching; retry/backoff/cancellation/poison handling; temporary artifact writes and atomic publication; worker CLI.
+Delivered in PRs #38–#39: job/attempt/lease schema, fencing and heartbeat, worker registration/capability matching, retry/backoff/cancellation, and pull-based runtime. PR #44 adds PostgreSQL JSONB artifact publication fenced by the active lease and idempotent by source/processor/config identity. Remaining: worker CLI/supervision, authenticated root-scoped source access, external content-addressed staging/blob publication, orphan cleanup, and crash/recovery drills.
 
-Acceptance: kill worker mid-job and prove lease recovery; stale lease cannot publish; duplicate enqueue does not duplicate logical work; retry budget deterministic.
+Acceptance: kill worker mid-job and prove lease recovery; stale lease cannot publish an artifact; duplicate enqueue/publication is idempotent; retry budget deterministic. Database publication fencing is covered; external blob publication and process-level recovery remain unverified.
 
 ## C — Extraction and Provenance (P1) — [Issue #22](https://github.com/raphael2025/personal-ai-brain/issues/22)
 
-Initial extractors: text/Markdown, PDF, DOCX, HTML, source code; then image metadata/OCR and audio/video metadata/transcription. Every artifact records source version, extractor version, config digest, schema version, checksum, timestamps. Apply file-size, CPU, memory, time, and archive expansion limits.
+Initial text/Markdown extractor and artifact provenance contracts are implemented. PR #44 persists source digest, processor/version, schema version, config digest, output digest/size, job ID, lease generation, and worker identity in PostgreSQL. Remaining: wire source authorization and worker handler, external artifact store/rebuild manifests, PDF/DOCX/HTML, then image/audio/video adapters. Apply file-size, CPU, memory, time, and archive expansion limits.
 
 Acceptance: malformed/adversarial synthetic corpus; unsupported types explicitly reported; same source+extractor+config idempotent; source never modified.
 
