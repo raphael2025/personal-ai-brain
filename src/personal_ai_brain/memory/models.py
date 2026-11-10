@@ -43,7 +43,7 @@ class MemoryEvidence:
                 raise ValueError(f"{name} must be a UUID string") from exc
         if not isinstance(self.locator, str) or not self.locator.strip() or len(self.locator) > 1000:
             raise ValueError("locator must be non-empty and at most 1000 characters")
-        if any(ord(character) < 0x20 and character not in "\\t\\n" for character in self.locator):
+        if any(ord(character) < 0x20 and character not in "\t\n" for character in self.locator):
             raise ValueError("locator must not contain control characters")
 
 
@@ -62,7 +62,7 @@ class MemoryDraft:
             raise ValueError("content must be a non-empty string")
         if len(self.content) > 20_000:
             raise ValueError("content must be at most 20000 characters")
-        if "\\x00" in self.content:
+        if "\x00" in self.content:
             raise ValueError("content must not contain NUL")
         if not isinstance(self.origin, MemoryOrigin):
             raise ValueError("origin must be a MemoryOrigin value")
