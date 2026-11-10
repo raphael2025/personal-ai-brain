@@ -29,7 +29,8 @@ from personal_ai_brain.workers.source_access import (  # noqa: E402
 MIGRATIONS = [
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0001_asset_registry.sql",
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0002_durable_jobs.sql",
-    Path(__file__).parents[2] / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
+    Path(__file__).parents[2]
+    / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0004_worker_root_grants.sql",
 ]
 
@@ -134,7 +135,10 @@ def make_lease(worker_id: str, version_id: str, root_id: str) -> JobLease:
 
 
 def test_worker_reads_only_granted_root_and_ignores_payload_path(source_environment):
-    repository, connection, root_id, version_id, worker_id, root, content, digest = source_environment
+    (
+        repository, connection, root_id, version_id, worker_id,
+        root, content, digest,
+    ) = source_environment
     repository.grant_root(worker_id, root_id, actor="operator")
     mounts = WorkerMountMap(worker_id, {root_id: root})
     reader = AuthorizedSourceReader(repository, mounts)
