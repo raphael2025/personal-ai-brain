@@ -50,8 +50,9 @@ A file that changes or becomes inaccessible between discovery and hashing makes 
 - Hashing uses descriptor-relative opens beneath the configured root, O_NOFOLLOW on each path component, discovery-metadata checks, and before/after file-descriptor checks. It fails closed when the platform lacks the required primitives. This prevents symlink traversal during the hash phase, but it is not a complete sandbox against every hostile concurrent rename pattern; see the scanner threat model and Issue #12.
 - Network roots require an operator-provided local mount path. No SMB/NFS client, mount management, or remote credential storage is included.
 - A process crash can leave a scan in RUNNING. Durable scan/job recovery and worker leases are follow-up work.
-- The CLI supports root enrollment/listing, scanning, scan history, asset list/inspect, reconciliation preview, and explicit audited reconciliation apply. Scan resume, crash recovery, and explicit normalizer migration remain follow-up work.
+- The CLI supports root enrollment/listing, scanning, scan history, asset list/inspect, reconciliation preview/apply, and path-normalizer migration preview/apply. Scan resume and crash recovery remain follow-up work.
 - Reconciliation is deliberately two-step: run `pab reconcile preview <scan-id>` first, then `pab reconcile apply <scan-id> --actor <identity>` only after reviewing the candidates. Preview is read-only; apply requires a COMPLETE scan and writes an audit event.
+- Path-normalizer migration is also two-step. Preview lists every active path-key change and any collision. Apply is blocked by running scans, refuses all collisions, updates only active locations, updates the root version, and records an audit event in the same transaction. Historical scan observations and closed location history remain unchanged.
 - The migration must be applied before using the CLI. The CLI does not auto-run migrations.
 
 ## Safety
@@ -68,3 +69,11 @@ Original files are never written, renamed, or deleted. PAB_DATABASE_URL is loade
     pab reconcile apply <scan-uuid> --actor operator-name
 
 The preview lists active locations that would become missing. It does not write registry rows. The apply command refuses non-COMPLETE scans, performs reconciliation in a database transaction, and records the actor and outcome in `audit_events`. Treat the actor as an operator identity, not as a password or secret.
+
+
+## Path-normalizer migration
+
+    pab root migrate-normalizer <root-uuid> --target-version v1-casefold
+    pab root migrate-normalizer <root-uuid> --target-version v1-casefold --apply --actor operator-name
+
+The first command is a read-only preview. Inspect every path and collision before applying. If two active paths map to the same target key (for example, `Docs/Readme.md` and `docs/readme.md` under case-folding), the migration refuses to proceed; it never merges assets or chooses a winner. The apply transaction updates active locations, changes the root's normalizer version, and writes the audit event together. If any step fails, all updates roll back. A pending or running scan blocks migration.
