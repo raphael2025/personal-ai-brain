@@ -33,7 +33,8 @@ from personal_ai_brain.workers.source_access import (  # noqa: E402
 MIGRATIONS = [
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0001_asset_registry.sql",
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0002_durable_jobs.sql",
-    Path(__file__).parents[2] / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
+    Path(__file__).parents[2]
+    / "infrastructure/postgres/migrations/0003_fenced_artifact_publication.sql",
     Path(__file__).parents[2] / "infrastructure/postgres/migrations/0004_worker_root_grants.sql",
 ]
 
