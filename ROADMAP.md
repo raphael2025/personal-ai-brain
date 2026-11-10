@@ -12,7 +12,7 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [x] ADR review of the v1 system blueprint and canonical registry/retrieval boundaries
 - [x] Registry domain, PostgreSQL persistence, and initial scan service validated end-to-end
 - [ ] Cross-platform scanner guarantees and hostile-filesystem validation
-- [ ] Synthetic evaluation corpus and baseline query set
+- [x] Initial synthetic evaluation corpus and labelled baseline query set (four documents/five questions; expansion remains)
 - [x] Desk research comparison: OpenViking, MemOS, Cognee, and hybrid retrieval baseline (benchmark still pending in Issue #5)
 
 ## Phase 1 — Asset Registry and durable processing (P0)
@@ -32,8 +32,9 @@ The detailed execution plan is [Implementation Map](docs/development/implementat
 - [ ] Root-scoped worker authorization/mount mapping and PDF/DOCX/HTML/archive extractors
 - [ ] Versioned artifacts and rebuild manifests
 - [ ] Sandboxed extraction with resource limits
-- [ ] Lexical BM25 retrieval baseline
-- [ ] Labelled evaluation and retrieval regression tests
+- [x] Initial in-memory lexical BM25 retrieval baseline with root/type/time filters (PR #43)
+- [x] Reproducible synthetic benchmark with Recall@5/10, MRR, nDCG@10, citation precision, and latency reporting (PR #43)
+- [ ] Expand labelled evaluation corpus and add persistent chunk/version retrieval regression tests
 - [ ] Optional vector channel and measured hybrid ranking
 - [ ] Evidence spans and citations
 
