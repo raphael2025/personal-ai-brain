@@ -12,7 +12,7 @@ This page distinguishes merged and validated capabilities from planned architect
 | SHA-256 file identity | Implemented | Path-based helper remains for standalone use; registry scans use descriptor-relative hashing |
 | Directory discovery | Implemented | Read-only, no symlink traversal; fails closed without required POSIX primitives; not a hardened sandbox against hostile concurrent filesystem changes |
 | Descriptor-relative file hashing | Implemented | Root-relative opens, O_NOFOLLOW, O_NONBLOCK, discovery metadata checks, and before/after descriptor checks; cross-platform validation remains open |
-| StorageRoot / AssetLocation models | Implemented | URI/path validation exists; platform-specific normalizer migration is not implemented |
+| StorageRoot / AssetLocation models | Implemented | URI/path validation and explicit collision-safe path-normalizer migration are implemented for v1-exact/v1-casefold; cross-platform semantics still need broader validation |
 | PostgreSQL Asset Registry schema | Implemented | Manual migration; no migration runner or rollback automation yet |
 | Asset identity and content versions | Implemented | Stable logical asset IDs; fingerprints do not auto-merge different paths |
 | Storage locations and scan history | Implemented | Current location and historical events are stored |
@@ -29,8 +29,7 @@ This page distinguishes merged and validated capabilities from planned architect
 ## Not implemented yet
 
 - Worker CLI/process supervisor, graceful signal/drain controls, authenticated root-scoped source access, artifact staging/publication, and operational recovery
-- Explicit path-normalizer migration
-- Durable scan resume and crash recovery
+- Durable scan resume, interrupted RUNNING scan recovery, and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
 - Document, image, audio, video, archive, and code extraction pipelines
 - OCR, transcription, embeddings, BM25, vector retrieval, and evaluation corpus
