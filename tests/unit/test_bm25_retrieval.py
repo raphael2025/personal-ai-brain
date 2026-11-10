@@ -6,13 +6,13 @@ from datetime import UTC, datetime
 
 import pytest
 
+from personal_ai_brain.evaluation.benchmark import run_benchmark
 from personal_ai_brain.evaluation.bm25 import (
     BM25Index,
     SearchDocument,
     SearchFilters,
     tokenize,
 )
-from personal_ai_brain.evaluation.benchmark import run_benchmark
 
 
 def test_tokenizer_is_unicode_casefolded_and_ignores_punctuation():
