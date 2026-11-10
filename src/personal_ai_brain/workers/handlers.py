@@ -35,6 +35,9 @@ def text_extraction_config_digest(
         "output_schema_version": selected.MANIFEST.output_schema_version,
         "max_input_bytes": selected.MANIFEST.max_input_bytes,
         "network_required": selected.MANIFEST.network_required,
+        "media_types": list(selected.MANIFEST.media_types),
+        "extensions": list(selected.MANIFEST.extensions),
+        "permissions": list(selected.MANIFEST.permissions),
     }
     encoded = json.dumps(config, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
@@ -54,6 +57,8 @@ class TextExtractionHandler:
         self.extractor = extractor or TextMarkdownExtractor()
 
     def __call__(self, lease: JobLease) -> None:
+        if lease.config_digest != text_extraction_config_digest(self.extractor):
+            raise PermanentJobError("ExtractorConfigMismatch")
         try:
             source = self.source_reader.read_for_lease(lease)
         except (SourceAccessDeniedError, SourceContentMismatchError) as exc:
