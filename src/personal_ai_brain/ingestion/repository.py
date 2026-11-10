@@ -71,7 +71,9 @@ class PostgresJobRepository:
         if not isinstance(display_name, str) or not display_name.strip():
             raise ValueError("display_name must be non-empty")
         if len(display_name) > 200 or any(ord(c) < 0x20 or ord(c) == 0x7F for c in display_name):
-            raise ValueError("display_name must be at most 200 characters without control characters")
+            raise ValueError(
+                "display_name must be at most 200 characters without control characters"
+            )
         if len(set(capabilities)) != len(capabilities):
             raise ValueError("capabilities must not contain duplicates")
         if any(not isinstance(item, str) or not item.strip() for item in capabilities):
