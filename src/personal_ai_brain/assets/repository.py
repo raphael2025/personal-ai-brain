@@ -7,6 +7,7 @@ psycopg only when PostgreSQL persistence is selected.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -50,6 +51,8 @@ class AssetRegistryRepository(Protocol):
         status: ScanStatus,
         error_summary: str | None = None,
     ) -> int: ...
+
+    def reconcile_scan(self, scan_id: str, *, actor: str) -> int: ...
 
     def fail_scan(self, scan_id: str, error_summary: str) -> None: ...
 
@@ -284,19 +287,17 @@ class PostgresAssetRegistryRepository:
                     raise IdempotencyConflict(
                         "scan finalization was already committed with different data"
                     )
-                if status is ScanStatus.COMPLETE:
-                    return int(
-                        connection.execute(
-                            """
-                            SELECT count(*)
-                              FROM asset_location_events
-                             WHERE scan_run_id = %s
-                               AND event_type = 'availability_changed'
-                            """,
-                            (scan_uuid,),
-                        ).fetchone()[0]
-                    )
-                return 0
+                return int(
+                    connection.execute(
+                        """
+                        SELECT count(*)
+                          FROM asset_location_events
+                         WHERE scan_run_id = %s
+                           AND event_type = 'availability_changed'
+                        """,
+                        (scan_uuid,),
+                    ).fetchone()[0]
+                )
 
             for prepared in observations:
                 observation = prepared.observation
@@ -436,12 +437,50 @@ class PostgresAssetRegistryRepository:
                 (status.value, error_summary, scan_uuid),
             )
 
-            if status is ScanStatus.COMPLETE:
-                changed = connection.execute(
-                    "SELECT reconcile_missing_asset_locations(%s)", (scan_uuid,)
-                ).fetchone()[0]
-                return int(changed)
         return 0
+
+    def reconcile_scan(self, scan_id: str, *, actor: str) -> int:
+        """Apply COMPLETE-scan reconciliation as an explicit audited action."""
+        if not isinstance(actor, str) or not actor.strip() or len(actor) > 200:
+            raise ValueError("actor must be a non-empty string of at most 200 characters")
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in actor):
+            raise ValueError("actor must not contain ASCII control characters")
+
+        scan_uuid = self._uuid(scan_id)
+        with self._connection() as connection:
+            scan = connection.execute(
+                "SELECT status FROM scan_runs WHERE id = %s FOR UPDATE",
+                (scan_uuid,),
+            ).fetchone()
+            if scan is None:
+                raise RegistryNotFoundError(f"scan not found: {scan_id}")
+            if scan[0] != ScanStatus.COMPLETE.value:
+                raise ValueError("reconciliation requires a COMPLETE scan")
+
+            changed = int(
+                connection.execute(
+                    "SELECT reconcile_missing_asset_locations(%s)",
+                    (scan_uuid,),
+                ).fetchone()[0]
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events (
+                    id, actor, action, target_type, target_id, decision, details
+                )
+                VALUES (%s, %s, 'asset_location.reconcile', 'scan_run', %s,
+                        'recorded', %s::jsonb)
+                """,
+                (
+                    uuid4(),
+                    actor.strip(),
+                    str(scan_uuid),
+                    json.dumps(
+                        {"availability_events": changed, "scan_id": str(scan_uuid)}
+                    ),
+                ),
+            )
+            return changed
 
     def fail_scan(self, scan_id: str, error_summary: str) -> None:
         with self._connection() as connection:

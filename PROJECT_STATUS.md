@@ -17,8 +17,8 @@ This page distinguishes merged and validated capabilities from planned architect
 | Asset identity and content versions | Implemented | Stable logical asset IDs; fingerprints do not auto-merge different paths |
 | Storage locations and scan history | Implemented | Current location and historical events are stored |
 | COMPLETE-only reconciliation | Implemented | PARTIAL/FAILED scans never infer missing locations; complete empty scans can mark locations missing |
-| Registry repository and scan service | Implemented | Initial root/scan path; asset browsing, dry-run, scan resume, and crash recovery remain |
-| CLI | Initial implementation | pab root add, pab root list, and pab scan; no asset/worker commands yet |
+| Registry repository and scan service | Implemented | Initial root/scan path; scan completion no longer implicitly marks unseen locations missing; operator reconciliation is explicit and audited |
+| CLI | Initial implementation | pab root add/list, scan, scan-status, asset list/inspect, reconcile preview/apply; worker commands and scan resume remain |
 | Scan replay handling | Implemented | Identical finalization is idempotent; conflicting replay is rejected |
 | CI | Implemented | Python 3.11–3.13; PR #34 passed all matrix jobs |
 | CodeQL | Implemented | PR #34 passed; automated analysis is not a complete security audit |
@@ -28,8 +28,8 @@ This page distinguishes merged and validated capabilities from planned architect
 ## Not implemented yet
 
 - Durable job/attempt/lease model, worker recovery, and stale-scan cleanup
-- Explicit path-normalizer migration and dry-run reconciliation
-- Asset list/inspect and scan status CLI commands
+- Explicit path-normalizer migration
+- Durable scan resume and crash recovery
 - Rename/move candidate workflow and duplicate-asset review UI
 - Document, image, audio, video, archive, and code extraction pipelines
 - OCR, transcription, embeddings, BM25, vector retrieval, and evaluation corpus
@@ -50,6 +50,11 @@ Set PAB_DATABASE_URL, apply the SQL migration manually, then use:
     pab root add --name "Documents" --uri "file:///home/user/Documents" --kind local --case-sensitive yes
     pab root list
     pab scan <root-uuid>
+    pab scan-status --root-id <root-uuid>
+    pab asset list --root-id <root-uuid>
+    pab asset inspect <asset-uuid>
+    pab reconcile preview <scan-uuid>
+    pab reconcile apply <scan-uuid> --actor operator-name
 
 SMB/NFS roots require an explicit local mount path with pab scan <root-uuid> --path /mnt/share. See [Registry Service and CLI](docs/development/registry-service.md) for details and limitations.
 
