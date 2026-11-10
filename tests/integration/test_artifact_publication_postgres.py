@@ -137,7 +137,7 @@ def test_publish_persists_provenance_and_is_idempotent_across_jobs(artifact_envi
         """,
         (first_id,),
     ).fetchone()
-    assert row[0] == uuid4() if False else row[0] == jobs._uuid(version_id)
+    assert str(row[0]) == version_id
     assert row[5] == source_digest
     assert row[6] == "c" * 64
     assert row[7] == jobs._uuid(first_lease.job_id)
@@ -152,6 +152,7 @@ def test_stale_worker_cannot_publish_after_lease_reclaim(artifact_environment):
     jobs, artifacts, connection, version_id, source_digest = artifact_environment
     worker_a, worker_b = str(uuid4()), str(uuid4())
     old_lease = enqueue_and_claim(jobs, version_id, worker_a, key="reclaim")
+    jobs.register_worker(worker_b, "artifact test worker B", ("text",))
     connection.execute(
         "UPDATE processing_jobs SET lease_expires_at = now() - interval '1 second' WHERE id = %s",
         (old_lease.job_id,),
@@ -165,10 +166,18 @@ def test_stale_worker_cannot_publish_after_lease_reclaim(artifact_environment):
     new_lease = jobs.claim(worker_b)
     assert new_lease is not None and new_lease.generation > old_lease.generation
     with pytest.raises(LeaseLostError):
-        artifacts.publish(old_lease, make_artifact(version_id, source_digest), config_digest="c" * 64)
+        artifacts.publish(
+            old_lease,
+            make_artifact(version_id, source_digest),
+            config_digest="c" * 64,
+        )
 
     assert connection.execute("SELECT count(*) FROM processing_artifacts").fetchone()[0] == 0
-    new_id = artifacts.publish(new_lease, make_artifact(version_id, source_digest), config_digest="c" * 64)
+    new_id = artifacts.publish(
+        new_lease,
+        make_artifact(version_id, source_digest),
+        config_digest="c" * 64,
+    )
     assert new_id
 
 
@@ -176,7 +185,11 @@ def test_same_artifact_identity_with_different_output_is_rejected(artifact_envir
     jobs, artifacts, _, version_id, source_digest = artifact_environment
     worker_a, worker_b = str(uuid4()), str(uuid4())
     first_lease = enqueue_and_claim(jobs, version_id, worker_a, key="conflict-a")
-    artifacts.publish(first_lease, make_artifact(version_id, source_digest, "first"), config_digest="c" * 64)
+    artifacts.publish(
+        first_lease,
+        make_artifact(version_id, source_digest, "first"),
+        config_digest="c" * 64,
+    )
     jobs.complete(first_lease)
 
     second_lease = enqueue_and_claim(jobs, version_id, worker_b, key="conflict-b")
