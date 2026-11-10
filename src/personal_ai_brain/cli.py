@@ -72,6 +72,11 @@ def _parser() -> argparse.ArgumentParser:
         "preview", help="dry-run; list locations a COMPLETE scan would mark missing"
     )
     preview.add_argument("scan_id")
+    apply = reconcile_commands.add_parser(
+        "apply", help="apply reconciliation for a COMPLETE scan and write an audit event"
+    )
+    apply.add_argument("scan_id")
+    apply.add_argument("--actor", required=True, help="human or automation identity")
 
     return parser
 
@@ -154,6 +159,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"would_mark_missing={len(candidates)}")
             _print_rows(candidates)
             print("DRY RUN ONLY: no registry rows were changed.")
+            return 0
+
+        if args.command == "reconcile" and args.reconcile_command == "apply":
+            changed = repository.reconcile_scan(args.scan_id, actor=args.actor)
+            print(
+                f"scan={args.scan_id} reconciliation_events={changed} "
+                f"actor={args.actor}"
+            )
             return 0
     except Exception as exc:
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
