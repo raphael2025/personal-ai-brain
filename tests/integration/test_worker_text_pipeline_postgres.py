@@ -16,7 +16,9 @@ if not DATABASE_URL:
 psycopg = pytest.importorskip("psycopg")
 from psycopg import sql  # noqa: E402
 
-from personal_ai_brain.evaluation.postgres_search import PostgresLexicalSearchRepository  # noqa: E402
+from personal_ai_brain.evaluation.postgres_search import (  # noqa: E402
+    PostgresLexicalSearchRepository,
+)
 from personal_ai_brain.ingestion.artifacts import PostgresArtifactRepository  # noqa: E402
 from personal_ai_brain.ingestion.models import JobSpec  # noqa: E402
 from personal_ai_brain.ingestion.repository import PostgresJobRepository  # noqa: E402
