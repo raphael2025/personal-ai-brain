@@ -1,1 +1,94 @@
--- Explicit memory lifecycle with immutable source evidence and append-only transitions.\n-- Model inference is always a candidate until an explicit user confirmation.\n\nCREATE TABLE memories (\n    id uuid PRIMARY KEY,\n    content text NOT NULL CHECK (length(btrim(content)) BETWEEN 1 AND 20000),\n    content_sha256 char(64) NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),\n    origin text NOT NULL CHECK (\n        origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')\n    ),\n    state text NOT NULL CHECK (\n        state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')\n    ),\n    confidence double precision CHECK (\n        confidence IS NULL OR (confidence >= 0 AND confidence <= 1)\n    ),\n    created_by text NOT NULL CHECK (length(btrim(created_by)) BETWEEN 1 AND 200),\n    confirmed_by text CHECK (confirmed_by IS NULL OR length(btrim(confirmed_by)) BETWEEN 1 AND 200),\n    confirmed_at timestamptz,\n    created_at timestamptz NOT NULL DEFAULT now(),\n    updated_at timestamptz NOT NULL DEFAULT now(),\n    CHECK (\n        (origin = 'user_confirmed' AND confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL)\n        OR\n        (origin <> 'user_confirmed' AND confirmed_by IS NULL AND confirmed_at IS NULL)\n    ),\n    CHECK (origin <> 'model_inferred' OR state IN ('candidate', 'rejected', 'archived')),\n    CHECK (origin <> 'source_derived' OR state = 'candidate')\n);\n\nCREATE INDEX memories_state_updated_idx ON memories (state, updated_at DESC);\nCREATE INDEX memories_origin_state_idx ON memories (origin, state);\n\n-- Composite target key prevents attaching an artifact produced from another source version.\nCREATE UNIQUE INDEX processing_artifacts_id_version_uq\n    ON processing_artifacts (id, asset_version_id);\n\nCREATE TABLE memory_evidence (\n    memory_id uuid NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,\n    asset_version_id uuid NOT NULL REFERENCES asset_versions(id) ON DELETE RESTRICT,\n    artifact_id uuid,\n    locator text NOT NULL CHECK (length(btrim(locator)) BETWEEN 1 AND 1000),\n    created_at timestamptz NOT NULL DEFAULT now(),\n    PRIMARY KEY (memory_id, asset_version_id, locator),\n    FOREIGN KEY (artifact_id, asset_version_id)\n        REFERENCES processing_artifacts(id, asset_version_id) ON DELETE RESTRICT\n);\n\nCREATE INDEX memory_evidence_asset_version_idx ON memory_evidence (asset_version_id);\nCREATE INDEX memory_evidence_artifact_idx ON memory_evidence (artifact_id) WHERE artifact_id IS NOT NULL;\n\nCREATE TABLE memory_state_events (\n    id uuid PRIMARY KEY,\n    memory_id uuid NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,\n    actor text NOT NULL CHECK (length(btrim(actor)) BETWEEN 1 AND 200),\n    action text NOT NULL CHECK (action IN ('created', 'transitioned', 'confirmed')),\n    previous_state text CHECK (\n        previous_state IS NULL OR previous_state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')\n    ),\n    new_state text NOT NULL CHECK (\n        new_state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')\n    ),\n    previous_origin text CHECK (\n        previous_origin IS NULL OR previous_origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')\n    ),\n    new_origin text NOT NULL CHECK (\n        new_origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')\n    ),\n    reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 1 AND 1000),\n    occurred_at timestamptz NOT NULL DEFAULT now(),\n    CHECK (\n        (action = 'created' AND previous_state IS NULL AND previous_origin IS NULL)\n        OR (action IN ('transitioned', 'confirmed') AND previous_state IS NOT NULL AND previous_origin IS NOT NULL)\n    )\n);\n\nCREATE INDEX memory_state_events_memory_idx ON memory_state_events (memory_id, occurred_at, id);\n\nCREATE FUNCTION prevent_memory_history_mutation()\nRETURNS trigger\nLANGUAGE plpgsql\nAS $function$\nBEGIN\n    RAISE EXCEPTION 'memory evidence and state events are append-only';\nEND;\n$function$;\n\nCREATE TRIGGER memory_evidence_immutable\n    BEFORE UPDATE OR DELETE ON memory_evidence\n    FOR EACH ROW EXECUTE FUNCTION prevent_memory_history_mutation();\n\nCREATE TRIGGER memory_state_events_immutable\n    BEFORE UPDATE OR DELETE ON memory_state_events\n    FOR EACH ROW EXECUTE FUNCTION prevent_memory_history_mutation();\n
+-- Explicit memory lifecycle with immutable source evidence and append-only transitions.
+-- Model inference is always a candidate until an explicit user confirmation.
+
+CREATE TABLE memories (
+    id uuid PRIMARY KEY,
+    content text NOT NULL CHECK (length(btrim(content)) BETWEEN 1 AND 20000),
+    content_sha256 char(64) NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
+    origin text NOT NULL CHECK (
+        origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')
+    ),
+    state text NOT NULL CHECK (
+        state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')
+    ),
+    confidence double precision CHECK (
+        confidence IS NULL OR (confidence >= 0 AND confidence <= 1)
+    ),
+    created_by text NOT NULL CHECK (length(btrim(created_by)) BETWEEN 1 AND 200),
+    confirmed_by text CHECK (confirmed_by IS NULL OR length(btrim(confirmed_by)) BETWEEN 1 AND 200),
+    confirmed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (
+        (origin = 'user_confirmed' AND confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL)
+        OR
+        (origin <> 'user_confirmed' AND confirmed_by IS NULL AND confirmed_at IS NULL)
+    ),
+    CHECK (origin <> 'model_inferred' OR state IN ('candidate', 'rejected', 'archived')),
+    CHECK (origin <> 'source_derived' OR state = 'candidate')
+);
+
+CREATE INDEX memories_state_updated_idx ON memories (state, updated_at DESC);
+CREATE INDEX memories_origin_state_idx ON memories (origin, state);
+
+-- Composite target key prevents attaching an artifact produced from another source version.
+CREATE UNIQUE INDEX processing_artifacts_id_version_uq
+    ON processing_artifacts (id, asset_version_id);
+
+CREATE TABLE memory_evidence (
+    memory_id uuid NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+    asset_version_id uuid NOT NULL REFERENCES asset_versions(id) ON DELETE RESTRICT,
+    artifact_id uuid,
+    locator text NOT NULL CHECK (length(btrim(locator)) BETWEEN 1 AND 1000),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (memory_id, asset_version_id, locator),
+    FOREIGN KEY (artifact_id, asset_version_id)
+        REFERENCES processing_artifacts(id, asset_version_id) ON DELETE RESTRICT
+);
+
+CREATE INDEX memory_evidence_asset_version_idx ON memory_evidence (asset_version_id);
+CREATE INDEX memory_evidence_artifact_idx ON memory_evidence (artifact_id) WHERE artifact_id IS NOT NULL;
+
+CREATE TABLE memory_state_events (
+    id uuid PRIMARY KEY,
+    memory_id uuid NOT NULL REFERENCES memories(id) ON DELETE RESTRICT,
+    actor text NOT NULL CHECK (length(btrim(actor)) BETWEEN 1 AND 200),
+    action text NOT NULL CHECK (action IN ('created', 'transitioned', 'confirmed')),
+    previous_state text CHECK (
+        previous_state IS NULL OR previous_state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')
+    ),
+    new_state text NOT NULL CHECK (
+        new_state IN ('candidate', 'active', 'stale', 'conflicted', 'rejected', 'archived')
+    ),
+    previous_origin text CHECK (
+        previous_origin IS NULL OR previous_origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')
+    ),
+    new_origin text NOT NULL CHECK (
+        new_origin IN ('user_authored', 'user_confirmed', 'source_derived', 'model_inferred')
+    ),
+    reason text NOT NULL CHECK (length(btrim(reason)) BETWEEN 1 AND 1000),
+    occurred_at timestamptz NOT NULL DEFAULT now(),
+    CHECK (
+        (action = 'created' AND previous_state IS NULL AND previous_origin IS NULL)
+        OR (action IN ('transitioned', 'confirmed') AND previous_state IS NOT NULL AND previous_origin IS NOT NULL)
+    )
+);
+
+CREATE INDEX memory_state_events_memory_idx ON memory_state_events (memory_id, occurred_at, id);
+
+CREATE FUNCTION prevent_memory_history_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RAISE EXCEPTION 'memory evidence and state events are append-only';
+END;
+$function$;
+
+CREATE TRIGGER memory_evidence_immutable
+    BEFORE UPDATE OR DELETE ON memory_evidence
+    FOR EACH ROW EXECUTE FUNCTION prevent_memory_history_mutation();
+
+CREATE TRIGGER memory_state_events_immutable
+    BEFORE UPDATE OR DELETE ON memory_state_events
+    FOR EACH ROW EXECUTE FUNCTION prevent_memory_history_mutation();
