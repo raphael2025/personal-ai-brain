@@ -37,7 +37,7 @@ def test_rejects_relative_mount_paths():
 
 def test_rejects_unknown_or_missing_config_fields(tmp_path: Path):
     config = tmp_path / "worker.toml"
-    config.write_text('version = 1\nworker_id = "x"\n[mounts]\n', encoding="utf-8")
+    config.write_text('version = 1\nworker_id = "x"\nextra = true\n[mounts]\n', encoding="utf-8")
 
     with pytest.raises(ValueError, match="mount config"):
         load_worker_mount_map(config)
